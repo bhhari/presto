@@ -13,6 +13,8 @@
  */
 package com.facebook.presto.array;
 
+import static com.facebook.presto.array.Arrays.ExpansionFactor.LARGE;
+import static com.facebook.presto.array.Arrays.ExpansionFactor.MEDIUM;
 import static com.facebook.presto.array.Arrays.ExpansionFactor.SMALL;
 
 public class Arrays
@@ -23,8 +25,28 @@ public class Arrays
 
     public static int[] ensureCapacity(int[] buffer, int capacity)
     {
-        if (buffer == null || buffer.length < capacity) {
-            return new int[(int) (capacity * defaultExpansionFactor.expansionFactor)];
+        return ensureCapacity(buffer, capacity, defaultExpansionFactor, false, false);
+    }
+
+    public static int[] ensureCapacity(int[] buffer, int capacity, ExpansionFactor expansionFactor, boolean preserveValues, boolean initializeValues)
+    {
+        checkValidExpansionFactor(expansionFactor);
+
+        int newCapacity = (int) (capacity * expansionFactor.expansionFactor);
+
+        if (buffer == null) {
+            buffer = new int[newCapacity];
+        }
+        else if (buffer.length < capacity) {
+            if (preserveValues) {
+                buffer = java.util.Arrays.copyOf(buffer, newCapacity);
+            }
+            else {
+                buffer = new int[newCapacity];
+            }
+        }
+        else if (initializeValues) {
+            java.util.Arrays.fill(buffer, 0);
         }
 
         return buffer;
@@ -73,6 +95,34 @@ public class Arrays
         }
 
         return buffer;
+    }
+
+    public static byte[] ensureCapacity(byte[] buffer, int capacity, ExpansionFactor expansionFactor, boolean preserveValues)
+    {
+        checkValidExpansionFactor(expansionFactor);
+
+        int newCapacity = (int) (capacity * expansionFactor.expansionFactor);
+
+        if (buffer == null) {
+            buffer = new byte[newCapacity];
+        }
+        else if (buffer.length < capacity) {
+            if (preserveValues) {
+                buffer = java.util.Arrays.copyOf(buffer, newCapacity);
+            }
+            else {
+                buffer = new byte[newCapacity];
+            }
+        }
+
+        return buffer;
+    }
+
+    private static void checkValidExpansionFactor(ExpansionFactor expansionFactor)
+    {
+        if (!expansionFactor.equals(SMALL) && !expansionFactor.equals(MEDIUM) && !expansionFactor.equals(LARGE)) {
+            throw new IllegalArgumentException("expansionFactor must be 1.0, 1.5 or 2.0");
+        }
     }
 
     public enum ExpansionFactor
