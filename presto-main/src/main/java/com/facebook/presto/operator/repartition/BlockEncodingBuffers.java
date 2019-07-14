@@ -29,6 +29,7 @@ package com.facebook.presto.operator.repartition;
 
 import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.ByteArrayBlock;
+import com.facebook.presto.spi.block.ColumnarArray;
 import com.facebook.presto.spi.block.DictionaryBlock;
 import com.facebook.presto.spi.block.Int128ArrayBlock;
 import com.facebook.presto.spi.block.IntArrayBlock;
@@ -150,10 +151,21 @@ public abstract class BlockEncodingBuffers
             return new VariableWidthBlockEncodingBuffers();
         }
 
+        if (decodedBlock instanceof ColumnarArray) {
+            return new ArrayBlockEncodingBuffers(decodedBlockNode);
+        }
+
         throw new IllegalArgumentException("Unsupported encoding: " + decodedBlock.getClass().getSimpleName());
     }
 
     public abstract void resetBuffers();
+
+    protected void resetPositions()
+    {
+        positionsOffset = 0;
+        positionCount = 0;
+        positionsMapped = false;
+    }
 
     public void setNextBatch(int positionsOffset, int batchSize)
     {
@@ -241,6 +253,15 @@ public abstract class BlockEncodingBuffers
         return decodedBlockNode;
     }
 
+    protected void appendPositionRange(int offset, int length)
+    {
+        positions = ensureCapacity(positions, positionCount + length, LARGE, true, false);
+
+        for (int i = 0; i < length; i++) {
+            positions[positionCount++] = offset + i;
+        }
+    }
+
     protected int[] getPositions()
     {
         if (positionsMapped) {
@@ -256,7 +277,7 @@ public abstract class BlockEncodingBuffers
         if (decodedBlock.mayHaveNull()) {
             // Write to nullsBuffer if there is a possibility to have nulls. It is possible that the
             // decodedBlock contains nulls, but rows that go into this partition don't. Write to nullsBuffer anyway.
-            nullsBuffer = ensureCapacity(nullsBuffer, nullsBufferIndex + batchSize / BITS_IN_BYTE + 1, LARGE, true);
+            nullsBuffer = ensureCapacity(nullsBuffer, (bufferedPositionCount + batchSize) / BITS_IN_BYTE + 1, LARGE, true);
 
             int bufferedNullsCount = nullsBufferIndex * BITS_IN_BYTE + remainingNullsCount;
             if (bufferedPositionCount > bufferedNullsCount) {
@@ -270,7 +291,7 @@ public abstract class BlockEncodingBuffers
         else if (containsNull()) {
             // There were nulls in previously buffered rows, but for this batch there can't be any nulls.
             // Any how we need to append 0's for this batch.
-            nullsBuffer = ensureCapacity(nullsBuffer, nullsBufferIndex + batchSize / BITS_IN_BYTE + 1, LARGE, true);
+            nullsBuffer = ensureCapacity(nullsBuffer, (bufferedPositionCount + batchSize) / BITS_IN_BYTE + 1, LARGE, true);
             encodeNonNullsAsBits(batchSize);
         }
     }
