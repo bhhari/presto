@@ -33,6 +33,7 @@ import com.facebook.presto.spi.block.Int128ArrayBlock;
 import com.facebook.presto.spi.block.IntArrayBlock;
 import com.facebook.presto.spi.block.LongArrayBlock;
 import com.facebook.presto.spi.block.RunLengthEncodedBlock;
+import com.facebook.presto.spi.block.ShortArrayBlock;
 import io.airlift.slice.SliceOutput;
 
 import javax.annotation.Nullable;
@@ -133,6 +134,10 @@ public abstract class BlockEncodingBuffers
 
         if (decodedBlock instanceof IntArrayBlock) {
             return new IntArrayBlockEncodingBuffers();
+        }
+
+        if (decodedBlock instanceof ShortArrayBlock) {
+            return new ShortArrayBlockEncodingBuffers();
         }
 
         throw new IllegalArgumentException("Unsupported encoding: " + decodedBlock.getClass().getSimpleName());
