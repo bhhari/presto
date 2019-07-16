@@ -25,7 +25,8 @@ public abstract class AbstractVariableWidthBlock
 {
     protected abstract Slice getRawSlice(int position);
 
-    protected abstract int getPositionOffset(int position);
+    // TODO: create ColumnarSlice class and expose the offset through it
+    public abstract int getPositionOffset(int position);
 
     protected abstract boolean isEntryNull(int position);
 
