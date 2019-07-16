@@ -30,6 +30,7 @@ package com.facebook.presto.operator.repartition;
 import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.ByteArrayBlock;
 import com.facebook.presto.spi.block.ColumnarArray;
+import com.facebook.presto.spi.block.ColumnarMap;
 import com.facebook.presto.spi.block.DictionaryBlock;
 import com.facebook.presto.spi.block.Int128ArrayBlock;
 import com.facebook.presto.spi.block.IntArrayBlock;
@@ -155,6 +156,10 @@ public abstract class BlockEncodingBuffers
             return new ArrayBlockEncodingBuffers(decodedBlockNode);
         }
 
+        if (decodedBlock instanceof ColumnarMap) {
+            return new MapBlockEncodingBuffers(decodedBlockNode);
+        }
+        
         throw new IllegalArgumentException("Unsupported encoding: " + decodedBlock.getClass().getSimpleName());
     }
 

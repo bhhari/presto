@@ -33,15 +33,17 @@ import com.facebook.presto.operator.SimpleArrayAllocator;
 import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.BlockFlattener;
 import com.facebook.presto.spi.block.DictionaryBlock;
+import com.facebook.presto.spi.function.OperatorType;
 import com.facebook.presto.spi.type.ArrayType;
 import com.facebook.presto.spi.type.DecimalType;
-import com.facebook.presto.spi.type.RowType;
+import com.facebook.presto.spi.type.MapType;
 import com.facebook.presto.spi.type.Type;
 import com.google.common.collect.ImmutableList;
 import io.airlift.slice.DynamicSliceOutput;
 import io.airlift.slice.SliceOutput;
 import org.testng.annotations.Test;
 
+import java.lang.invoke.MethodHandle;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -56,6 +58,7 @@ import static com.facebook.presto.block.BlockAssertions.createDictionaryBlock;
 import static com.facebook.presto.block.BlockAssertions.createIntsBlock;
 import static com.facebook.presto.block.BlockAssertions.createLongDecimalsBlock;
 import static com.facebook.presto.block.BlockAssertions.createLongsBlock;
+import static com.facebook.presto.block.BlockAssertions.createMapType;
 import static com.facebook.presto.block.BlockAssertions.createNullBlock;
 import static com.facebook.presto.block.BlockAssertions.createRLEBlock;
 import static com.facebook.presto.block.BlockAssertions.createShortDecimalsBlock;
@@ -66,6 +69,9 @@ import static com.facebook.presto.block.BlockSerdeUtil.readBlock;
 import static com.facebook.presto.operator.repartition.BlockEncodingBuffers.createBlockEncodingBuffers;
 import static com.facebook.presto.operator.repartition.OptimizedPartitionedOutputOperator.decodeBlock;
 import static com.facebook.presto.spi.block.ArrayBlock.fromElementBlock;
+import static com.facebook.presto.spi.block.MapBlock.fromKeyValueBlock;
+import static com.facebook.presto.spi.block.MethodHandleUtil.compose;
+import static com.facebook.presto.spi.block.MethodHandleUtil.nativeValueGetter;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.spi.type.BooleanType.BOOLEAN;
 import static com.facebook.presto.spi.type.DecimalType.createDecimalType;
@@ -150,6 +156,40 @@ public class TestBlockEncodingBuffers
         testNestedBlock(new ArrayType(new ArrayType(new ArrayType(SMALLINT))));
         testNestedBlock(new ArrayType(new ArrayType(new ArrayType(BOOLEAN))));
         testNestedBlock(new ArrayType(new ArrayType(new ArrayType(VARCHAR))));
+    }
+
+    @Test
+    public void testMap()
+    {
+        testNestedBlock(createMapType(BIGINT, BIGINT));
+        testNestedBlock(createMapType(createDecimalType(MAX_SHORT_PRECISION + 1), createDecimalType(MAX_SHORT_PRECISION + 1)));
+        testNestedBlock(createMapType(INTEGER, INTEGER));
+        testNestedBlock(createMapType(SMALLINT, SMALLINT));
+        testNestedBlock(createMapType(BOOLEAN, BOOLEAN));
+        testNestedBlock(createMapType(VARCHAR, VARCHAR));
+
+        testNestedBlock(createMapType(BIGINT, createMapType(BIGINT, BIGINT)));
+        testNestedBlock(createMapType(createDecimalType(MAX_SHORT_PRECISION + 1), createMapType(createDecimalType(MAX_SHORT_PRECISION + 1), createDecimalType(MAX_SHORT_PRECISION + 1))));
+        testNestedBlock(createMapType(INTEGER, createMapType(INTEGER, INTEGER)));
+        testNestedBlock(createMapType(SMALLINT, createMapType(SMALLINT, SMALLINT)));
+        testNestedBlock(createMapType(BOOLEAN, createMapType(BOOLEAN, BOOLEAN)));
+        testNestedBlock(createMapType(VARCHAR, createMapType(VARCHAR, VARCHAR)));
+
+        testNestedBlock(createMapType(createMapType(createMapType(BIGINT, BIGINT), BIGINT), createMapType(BIGINT, BIGINT)));
+        testNestedBlock(createMapType(
+                createMapType(createMapType(createDecimalType(MAX_SHORT_PRECISION + 1), createDecimalType(MAX_SHORT_PRECISION + 1)), createDecimalType(MAX_SHORT_PRECISION + 1)),
+                createMapType(createDecimalType(MAX_SHORT_PRECISION + 1), createDecimalType(MAX_SHORT_PRECISION + 1))));
+        testNestedBlock(createMapType(createMapType(createMapType(INTEGER, INTEGER), INTEGER), createMapType(INTEGER, INTEGER)));
+        testNestedBlock(createMapType(createMapType(createMapType(SMALLINT, SMALLINT), SMALLINT), createMapType(SMALLINT, SMALLINT)));
+        testNestedBlock(createMapType(createMapType(createMapType(BOOLEAN, BOOLEAN), BOOLEAN), createMapType(BOOLEAN, BOOLEAN)));
+        testNestedBlock(createMapType(createMapType(createMapType(VARCHAR, VARCHAR), VARCHAR), createMapType(VARCHAR, VARCHAR)));
+
+        testNestedBlock(createMapType(BIGINT, new ArrayType(BIGINT)));
+        testNestedBlock(createMapType(createDecimalType(MAX_SHORT_PRECISION + 1), new ArrayType(createDecimalType(MAX_SHORT_PRECISION + 1))));
+        testNestedBlock(createMapType(INTEGER, new ArrayType(INTEGER)));
+        testNestedBlock(createMapType(SMALLINT, new ArrayType(SMALLINT)));
+        testNestedBlock(createMapType(BOOLEAN, new ArrayType(BOOLEAN)));
+        testNestedBlock(createMapType(VARCHAR, new ArrayType(VARCHAR)));
     }
 
     private void testBlock(Type type, Block block)
@@ -334,13 +374,16 @@ public class TestBlockEncodingBuffers
                     offsets[position + 1] = offsets[position];
                 }
                 else {
-                    offsets[position + 1] = offsets[position] + (type instanceof RowType ? 1 : random.nextInt(10) + 1);
+                    offsets[position + 1] = offsets[position] + random.nextInt(10);
                 }
             }
 
             // Build the nested block of size offsets[positionCount].
             if (type instanceof ArrayType) {
                 blockStatus = buildArrayBlockStatus((ArrayType) type, positionCount, isView, isNull, offsets, allowNulls, wrappings);
+            }
+            else if (type instanceof MapType) {
+                blockStatus = buildMapBlockStatus((MapType) type, positionCount, isView, isNull, offsets, allowNulls, wrappings);
             }
             else {
                 throw new UnsupportedOperationException(format("type %s is not supported.", type));
@@ -488,6 +531,61 @@ public class TestBlockEncodingBuffers
 
         blockStatus = new BlockStatus(
                 fromElementBlock(positionCount, Optional.of(isNull), offsets, valuesBlockStatus.block),
+                expectedRowSizes);
+        return blockStatus;
+    }
+
+    private BlockStatus buildMapBlockStatus(
+            MapType mapType,
+            int positionCount,
+            boolean isView,
+            boolean[] isNull,
+            int[] offsets,
+            boolean allowNulls,
+            List<Encoding> wrappings)
+    {
+        requireNonNull(isNull);
+
+        BlockStatus blockStatus;
+
+        BlockStatus keyBlockStatus = buildBlockStatusWithType(
+                mapType.getKeyType(),
+                offsets[positionCount],
+                isView,
+                false,
+                wrappings);
+        BlockStatus valueBlockStatus = buildBlockStatusWithType(
+                mapType.getValueType(),
+                offsets[positionCount],
+                isView,
+                allowNulls,
+                wrappings);
+
+        int[] expectedKeySizes = keyBlockStatus.expectedRowSizes;
+        int[] expectedValueSizes = valueBlockStatus.expectedRowSizes;
+        // Use expectedKeySizes for the total size for both key and values
+        Arrays.setAll(expectedKeySizes, i -> expectedKeySizes[i] + expectedValueSizes[i]);
+        int[] expectedRowSizes = IntStream.range(0, positionCount)
+                .map(i -> MapBlockEncodingBuffers.POSITION_SIZE + Arrays.stream(expectedKeySizes, offsets[i], offsets[i + 1]).sum())
+                .toArray();
+
+        Type keyType = mapType.getKeyType();
+        MethodHandle keyNativeEquals = TYPE_MANAGER.resolveOperator(OperatorType.EQUAL, ImmutableList.of(keyType, keyType));
+        MethodHandle keyBlockNativeEquals = compose(keyNativeEquals, nativeValueGetter(keyType));
+        MethodHandle keyNativeHashCode = TYPE_MANAGER.resolveOperator(OperatorType.HASH_CODE, ImmutableList.of(keyType));
+        MethodHandle keyBlockHashCode = compose(keyNativeHashCode, nativeValueGetter(keyType));
+
+        blockStatus = new BlockStatus(
+                fromKeyValueBlock(
+                        positionCount,
+                        Optional.of(isNull),
+                        offsets,
+                        keyBlockStatus.block,
+                        valueBlockStatus.block,
+                        mapType,
+                        keyBlockNativeEquals,
+                        keyNativeHashCode,
+                        keyBlockHashCode),
                 expectedRowSizes);
         return blockStatus;
     }
