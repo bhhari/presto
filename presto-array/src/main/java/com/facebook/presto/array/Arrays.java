@@ -13,14 +13,18 @@
  */
 package com.facebook.presto.array;
 
+import static com.facebook.presto.array.Arrays.ExpansionFactor.SMALL;
+
 public class Arrays
 {
+    private static ExpansionFactor defaultExpansionFactor = SMALL;
+
     private Arrays() {}
 
     public static int[] ensureCapacity(int[] buffer, int capacity)
     {
         if (buffer == null || buffer.length < capacity) {
-            return new int[capacity];
+            return new int[(int) (capacity * defaultExpansionFactor.expansionFactor)];
         }
 
         return buffer;
@@ -29,7 +33,7 @@ public class Arrays
     public static long[] ensureCapacity(long[] buffer, int capacity)
     {
         if (buffer == null || buffer.length < capacity) {
-            return new long[capacity];
+            return new long[(int) (capacity * defaultExpansionFactor.expansionFactor)];
         }
 
         return buffer;
@@ -38,7 +42,7 @@ public class Arrays
     public static boolean[] ensureCapacity(boolean[] buffer, int capacity)
     {
         if (buffer == null || buffer.length < capacity) {
-            return new boolean[capacity];
+            return new boolean[(int) (capacity * defaultExpansionFactor.expansionFactor)];
         }
 
         return buffer;
@@ -47,7 +51,7 @@ public class Arrays
     public static byte[] ensureCapacity(byte[] buffer, int capacity)
     {
         if (buffer == null || buffer.length < capacity) {
-            return new byte[capacity];
+            return new byte[(int) (capacity * defaultExpansionFactor.expansionFactor)];
         }
 
         return buffer;
@@ -69,5 +73,19 @@ public class Arrays
         }
 
         return buffer;
+    }
+
+    public enum ExpansionFactor
+    {
+        SMALL(1.0),
+        MEDIUM(1.5),
+        LARGE(2.0);
+
+        private final double expansionFactor;
+
+        ExpansionFactor(double expansionFactor)
+        {
+            this.expansionFactor = expansionFactor;
+        }
     }
 }
