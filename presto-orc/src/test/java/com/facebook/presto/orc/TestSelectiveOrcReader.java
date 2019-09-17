@@ -16,15 +16,20 @@ package com.facebook.presto.orc;
 import com.facebook.presto.orc.TupleDomainFilter.BigintRange;
 import com.facebook.presto.orc.TupleDomainFilter.BigintValues;
 import com.facebook.presto.orc.TupleDomainFilter.BooleanValue;
+import com.facebook.presto.orc.TupleDomainFilter.BytesRange;
+import com.facebook.presto.orc.TupleDomainFilter.BytesValues;
 import com.facebook.presto.orc.TupleDomainFilter.DoubleRange;
 import com.facebook.presto.orc.TupleDomainFilter.FloatRange;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.Subfield;
+import com.facebook.presto.spi.type.CharType;
 import com.facebook.presto.spi.type.DecimalType;
 import com.facebook.presto.spi.type.SqlDate;
 import com.facebook.presto.spi.type.SqlDecimal;
 import com.facebook.presto.spi.type.SqlTimestamp;
+import com.facebook.presto.spi.type.SqlVarbinary;
 import com.facebook.presto.spi.type.Type;
+import com.google.common.base.Strings;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ContiguousSet;
 import com.google.common.collect.DiscreteDomain;
@@ -32,6 +37,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
+import com.google.common.collect.Streams;
+import com.google.common.primitives.Ints;
 import org.joda.time.DateTimeZone;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -43,6 +50,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 import java.util.function.Function;
 import java.util.stream.IntStream;
@@ -56,6 +64,7 @@ import static com.facebook.presto.orc.TupleDomainFilter.IS_NOT_NULL;
 import static com.facebook.presto.orc.TupleDomainFilter.IS_NULL;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.spi.type.BooleanType.BOOLEAN;
+import static com.facebook.presto.spi.type.CharType.createCharType;
 import static com.facebook.presto.spi.type.DateType.DATE;
 import static com.facebook.presto.spi.type.DoubleType.DOUBLE;
 import static com.facebook.presto.spi.type.IntegerType.INTEGER;
@@ -63,6 +72,8 @@ import static com.facebook.presto.spi.type.RealType.REAL;
 import static com.facebook.presto.spi.type.SmallintType.SMALLINT;
 import static com.facebook.presto.spi.type.TimestampType.TIMESTAMP;
 import static com.facebook.presto.spi.type.TinyintType.TINYINT;
+import static com.facebook.presto.spi.type.VarbinaryType.VARBINARY;
+import static com.facebook.presto.spi.type.VarcharType.VARCHAR;
 import static com.facebook.presto.testing.DateTimeTestingUtils.sqlTimestampOf;
 import static com.facebook.presto.testing.TestingConnectorSession.SESSION;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -71,6 +82,7 @@ import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Iterables.cycle;
 import static com.google.common.collect.Iterables.limit;
 import static com.google.common.collect.Lists.newArrayList;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.nCopies;
 import static java.util.stream.Collectors.toList;
 import static org.testng.Assert.assertEquals;
@@ -84,6 +96,7 @@ public class TestSelectiveOrcReader
     private static final DecimalType DECIMAL_TYPE_PRECISION_2 = DecimalType.createDecimalType(2, 1);
     private static final DecimalType DECIMAL_TYPE_PRECISION_4 = DecimalType.createDecimalType(4, 2);
     private static final DecimalType DECIMAL_TYPE_PRECISION_19 = DecimalType.createDecimalType(19, 8);
+    private static final CharType CHAR_10 = createCharType(10);
     private final OrcTester tester = quickSelectiveOrcTester();
 
     @BeforeClass
@@ -436,7 +449,7 @@ public class TestSelectiveOrcReader
     public void testArraysOfNulls()
             throws Exception
     {
-        for (Type type : ImmutableList.of(BOOLEAN, BIGINT, INTEGER, SMALLINT, TINYINT, DOUBLE, REAL, TIMESTAMP, DECIMAL_TYPE_PRECISION_19, DECIMAL_TYPE_PRECISION_4, arrayType(INTEGER))) {
+        for (Type type : ImmutableList.of(BOOLEAN, BIGINT, INTEGER, SMALLINT, TINYINT, DOUBLE, REAL, TIMESTAMP, DECIMAL_TYPE_PRECISION_19, DECIMAL_TYPE_PRECISION_4, VARCHAR, CHAR_10, VARBINARY, arrayType(INTEGER))) {
             tester.testRoundTrip(arrayType(type),
                     nCopies(NUM_ROWS, nCopies(5, null)),
                     ImmutableList.of(
@@ -564,6 +577,155 @@ public class TestSelectiveOrcReader
                                 false, true, 28999999999L, 28999999999L, false, true, true))));
     }
 
+    @Test
+    public void testVarchars()
+            throws Exception
+    {
+        // dictionary
+        tester.testRoundTrip(VARCHAR, newArrayList(limit(cycle(ImmutableList.of("apple", "apple pie", "apple\uD835\uDC03", "apple\uFFFD")), NUM_ROWS)),
+                stringEquals(false, "apple"));
+
+        // direct
+        tester.testRoundTrip(VARCHAR,
+                intsBetween(0, NUM_ROWS).stream().map(Object::toString).collect(toList()),
+                stringIn(false, "10", "11"),
+                stringIn(true, "10", "11"),
+                stringBetween(false, "14", "10"));
+
+        // direct & dictionary with filters
+        tester.testRoundTripTypes(
+                ImmutableList.of(VARCHAR, VARCHAR),
+                ImmutableList.of(
+                        intsBetween(0, NUM_ROWS).stream().map(Object::toString).collect(toList()),
+                        newArrayList(limit(cycle(ImmutableList.of("A", "B", "C")), NUM_ROWS))),
+                toSubfieldFilters(ImmutableMap.of(
+                        0, stringBetween(true, "16", "10"),
+                        1, stringBetween(false, "B", "A"))));
+
+        //stripe dictionary
+        tester.testRoundTrip(VARCHAR, newArrayList(concat(ImmutableList.of("a"), nCopies(9999, "123"), ImmutableList.of("b"), nCopies(9999, "123"))));
+
+        //empty sequence
+        tester.testRoundTrip(VARCHAR, nCopies(NUM_ROWS, ""), BytesRange.of("".getBytes(), false, "".getBytes(), false, false));
+
+        // copy of AbstractOrcTester::testDwrfInvalidCheckpointsForRowGroupDictionary
+        List<Integer> values = newArrayList(limit(
+                cycle(concat(
+                        ImmutableList.of(1), nCopies(9999, 123),
+                        ImmutableList.of(2), nCopies(9999, 123),
+                        ImmutableList.of(3), nCopies(9999, 123),
+                        nCopies(1_000_000, null))),
+                200_000));
+
+        tester.assertRoundTrip(
+                VARCHAR,
+                newArrayList(values).stream()
+                        .map(value -> value == null ? null : String.valueOf(value))
+                        .collect(toList()));
+
+        //copy of AbstractOrcTester::testDwrfInvalidCheckpointsForStripeDictionary
+        tester.testRoundTrip(
+                VARCHAR,
+                newArrayList(limit(cycle(ImmutableList.of(1, 3, 5, 7, 11, 13, 17)), 200_000)).stream()
+                        .map(Object::toString)
+                        .collect(toList()));
+    }
+
+    @Test
+    public void testbla()
+            throws Exception
+    {
+        // direct & dictionary with filters
+        tester.testRoundTripTypes(
+                ImmutableList.of(VARCHAR, VARCHAR),
+                ImmutableList.of(
+                        intsBetween(0, 20).stream().map(Object::toString).collect(toList()),
+                        newArrayList(limit(cycle(ImmutableList.of("A", "B", "C")), 20))),
+                toSubfieldFilters(ImmutableMap.of(
+                        0, stringBetween(true, "16", "10"),
+                        1, stringBetween(false, "B", "A"))));
+    }
+
+    @Test
+    public void testChars()
+            throws Exception
+    {
+        List<String> values1 = newArrayList(limit(cycle(ImmutableList.of("123456789", "23456789", "3456789")), NUM_ROWS));
+        List<String> values2 = newArrayList(limit(cycle(ImmutableList.of("12345", "23456", "34567")), NUM_ROWS));
+
+        //multiple columns filter on not null
+        tester.testRoundTripTypes(ImmutableList.of(VARCHAR, CharType.createCharType(5)), ImmutableList.of(values1, values2), toSubfieldFilters(ImmutableMap.of(0, IS_NOT_NULL)));
+
+        //filter on null
+        tester.testRoundTrip(CharType.createCharType(2), newArrayList(limit(cycle(ImmutableList.of("aa", "bb", "cc", "dd")), NUM_ROWS)), IS_NULL);
+
+        //range filter with noNullsAllowed
+        tester.testRoundTrip(CharType.createCharType(1), newArrayList(limit(cycle(ImmutableList.of("a", "b", "c", "d")), NUM_ROWS)),
+                BytesValues.of(new byte[][] {"a".getBytes(), "d".getBytes()}, false));
+
+        //range filter with nullsAllowed
+        tester.testRoundTrip(CharType.createCharType(1), newArrayList(limit(cycle(ImmutableList.of("a", "b", "c", "d")), NUM_ROWS)),
+                BytesValues.of(new byte[][] {"a".getBytes(), "d".getBytes()}, true));
+
+        //char with padding
+        tester.testRoundTrip(
+                CHAR_10,
+                intsBetween(0, NUM_ROWS).stream()
+                        .map(i -> toCharValue(i, CHAR_10.getLength()))
+                        .collect(toList()));
+
+        //char with filter
+        tester.testRoundTrip(
+                CHAR_10,
+                newArrayList(limit(cycle(ImmutableList.of(1, 3, 5, 7, 11, 13, 17)), NUM_ROWS)).stream()
+                        .map(i -> toCharValue(i, CHAR_10.getLength()))
+                        .collect(toList()), BytesValues.of(new byte[][] {toCharValue(1, CHAR_10.getLength()).getBytes(), toCharValue(3, CHAR_10.getLength()).getBytes()}, true));
+
+        //char with 0 truncated length
+        tester.testRoundTrip(CHAR_10, newArrayList(limit(cycle("          "), NUM_ROWS)));
+
+        tester.testRoundTrip(VARCHAR, newArrayList(concat(ImmutableList.of("a"), nCopies(9999, "123"), ImmutableList.of("b"), nCopies(9999, "123"))),
+                BytesValues.of(new byte[][] {"a".getBytes(), "b".getBytes()}, false));
+    }
+
+    @Test
+    public void testVarBinaries()
+            throws Exception
+    {
+        tester.testRoundTrip(
+                VARBINARY,
+                intsBetween(0, 5_000).stream()
+                        .map((v) -> new SqlVarbinary(Objects.toString(v).getBytes()))
+                        .collect(toList()), TupleDomainFilter.BytesValues.of(new byte[][] {"10".getBytes(), "11".getBytes()}, false));
+
+        //direct & dictionary column with Range Filters
+        tester.testRoundTripTypes(
+                ImmutableList.of(VARBINARY, VARBINARY),
+                ImmutableList.of(intsBetween(0, 20).stream()
+                        .map((v) -> new SqlVarbinary(Ints.toByteArray(v)))
+                        .collect(toList()), Streams.stream(limit(cycle(ImmutableList.of("A", "B", "C")), 20)).map((v) -> new SqlVarbinary(v.getBytes())).collect(toList())),
+                toSubfieldFilters(ImmutableMap.of(
+                        0, BytesRange.of("10".getBytes(), false, "16".getBytes(), false, true),
+                        1, BytesRange.of("A".getBytes(), false, "B".getBytes(), false, false))));
+
+        tester.testRoundTrip(
+                VARBINARY,
+                intsBetween(0, 30_000).stream()
+                        .map(Object::toString)
+                        .map(string -> string.getBytes(UTF_8))
+                        .map(SqlVarbinary::new)
+                        .collect(toList()), BytesRange.of(new byte[] {8}, false, new byte[] {9}, false, false));
+
+        tester.testRoundTrip(VARBINARY, nCopies(30_000, new SqlVarbinary(new byte[0])), BytesRange.of(new byte[0], false, new byte[] {1}, false, false));
+
+        tester.testRoundTrip(
+                VARBINARY, ImmutableList.copyOf(limit(cycle(ImmutableList.of(1, 3, 5, 7, 11, 13, 17)), 30_000)).stream()
+                        .map(Object::toString)
+                        .map(string -> string.getBytes(UTF_8))
+                        .map(SqlVarbinary::new)
+                        .collect(toList()), BytesRange.of(new byte[] {1}, false, new byte[] {12}, false, false));
+    }
+
     private void testRoundTripNumeric(Iterable<? extends Number> values, TupleDomainFilter filter)
             throws Exception
     {
@@ -619,6 +781,21 @@ public class TestSelectiveOrcReader
                         ImmutableMap.of(1, filter),
                         ImmutableMap.of(0, filter, 1, filter),
                         ImmutableMap.of(0, filter, 1, filter, 2, filter)));
+    }
+
+    private static TupleDomainFilter stringBetween(boolean nullAllowed, String upper, String lower)
+    {
+        return BytesRange.of(lower.getBytes(), false, upper.getBytes(), false, nullAllowed);
+    }
+
+    private static TupleDomainFilter stringEquals(boolean nullAllowed, String value)
+    {
+        return BytesRange.of(value.getBytes(), false, value.getBytes(), false, nullAllowed);
+    }
+
+    private static TupleDomainFilter stringIn(boolean nullAllowed, String... values)
+    {
+        return BytesValues.of(Arrays.stream(values).map(String::getBytes).toArray(byte[][]::new), nullAllowed);
     }
 
     private static ContiguousSet<Integer> intsBetween(int lowerInclusive, int upperExclusive)
@@ -677,6 +854,11 @@ public class TestSelectiveOrcReader
                 return value;
             }
         };
+    }
+
+    private static String toCharValue(Object value, int minLength)
+    {
+        return Strings.padEnd(value.toString(), 10, ' ');
     }
 
     private static List<Double> doubleSequence(double start, double step, int items)
