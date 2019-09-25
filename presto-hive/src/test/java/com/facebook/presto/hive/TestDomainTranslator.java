@@ -14,6 +14,8 @@
 package com.facebook.presto.hive;
 
 import com.facebook.presto.metadata.Metadata;
+import com.facebook.presto.spi.ConnectorSession;
+import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.Subfield;
 import com.facebook.presto.spi.function.FunctionHandle;
 import com.facebook.presto.spi.function.OperatorType;
@@ -27,9 +29,11 @@ import com.facebook.presto.spi.relation.DomainTranslator.ExtractionResult;
 import com.facebook.presto.spi.relation.RowExpression;
 import com.facebook.presto.spi.relation.SpecialFormExpression;
 import com.facebook.presto.spi.relation.VariableReferenceExpression;
+import com.facebook.presto.spi.security.ConnectorIdentity;
 import com.facebook.presto.spi.type.ArrayType;
 import com.facebook.presto.spi.type.MapType;
 import com.facebook.presto.spi.type.RowType;
+import com.facebook.presto.spi.type.TimeZoneKey;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.relational.FunctionResolution;
 import com.facebook.presto.sql.relational.RowExpressionDomainTranslator;
@@ -41,7 +45,9 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.facebook.presto.SessionTestUtils.TEST_SESSION;
 import static com.facebook.presto.block.BlockAssertions.createArrayBigintBlock;
@@ -49,6 +55,7 @@ import static com.facebook.presto.block.BlockAssertions.createMapBlock;
 import static com.facebook.presto.expressions.LogicalRowExpressions.TRUE_CONSTANT;
 import static com.facebook.presto.hive.HiveTestUtils.mapType;
 import static com.facebook.presto.metadata.MetadataManager.createTestMetadataManager;
+import static com.facebook.presto.spi.StandardErrorCode.INVALID_SESSION_PROPERTY;
 import static com.facebook.presto.spi.function.OperatorType.SUBSCRIPT;
 import static com.facebook.presto.spi.predicate.TupleDomain.withColumnDomains;
 import static com.facebook.presto.spi.relation.ConstantExpression.createConstantExpression;
@@ -58,12 +65,14 @@ import static com.facebook.presto.spi.relation.SpecialFormExpression.Form.IS_NUL
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.spi.type.BooleanType.BOOLEAN;
 import static com.facebook.presto.spi.type.IntegerType.INTEGER;
+import static com.facebook.presto.spi.type.TimeZoneKey.UTC_KEY;
 import static com.facebook.presto.spi.type.VarcharType.VARCHAR;
 import static com.facebook.presto.sql.analyzer.TypeSignatureProvider.fromTypes;
 import static com.facebook.presto.sql.relational.Expressions.call;
 import static com.facebook.presto.sql.relational.Expressions.constant;
 import static com.facebook.presto.sql.relational.Expressions.specialForm;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Locale.ENGLISH;
 import static org.testng.Assert.assertEquals;
 
 public class TestDomainTranslator
@@ -238,5 +247,72 @@ public class TestDomainTranslator
     private RowExpression bigintLiteral(long value)
     {
         return constant(value, BIGINT);
+    }
+
+    private final class TestConnectorSession
+            implements ConnectorSession
+    {
+        @Override
+        public String getQueryId()
+        {
+            return "test_query_id";
+        }
+
+        @Override
+        public Optional<String> getSource()
+        {
+            return Optional.of("TestSource");
+        }
+
+        @Override
+        public ConnectorIdentity getIdentity()
+        {
+            return new ConnectorIdentity("user", Optional.empty(), Optional.empty());
+        }
+
+        @Override
+        public TimeZoneKey getTimeZoneKey()
+        {
+            return UTC_KEY;
+        }
+
+        @Override
+        public Optional<String> getClientInfo()
+        {
+            return Optional.of("TestClientInfo");
+        }
+
+        @Override
+        public Locale getLocale()
+        {
+            return ENGLISH;
+        }
+
+        @Override
+        public long getStartTime()
+        {
+            return 0;
+        }
+
+        @Override
+        public Optional<String> getTraceToken()
+        {
+            return Optional.empty();
+        }
+
+        @Override
+        public boolean isLegacyTimestamp()
+        {
+            return true;
+        }
+
+        @Override
+        public <T> T getProperty(String name, Class<T> type)
+        {
+            if (name.equals(HiveSessionProperties.NESTED_COLUMNS_FILTER_ENABLED)) {
+                return (T) Boolean.TRUE;
+            }
+            throw new PrestoException(INVALID_SESSION_PROPERTY, "Unknown session property " + name);
+        }
     }
 }
