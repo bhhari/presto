@@ -124,6 +124,11 @@ public class TestHivePushdownFilterQueries
     }
 
     @Test
+    public void testPushdownWithFalse(){
+        assertQueryUsingH2Cte("SELECT is_returned FROM lineitem_ex where orderkey = 1 and orderkey = 2");
+    }
+
+    @Test
     public void testBooleans()
     {
         // Single boolean column

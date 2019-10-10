@@ -1761,25 +1761,33 @@ public class HiveMetadata
 
         // TODO Extract deterministic conjuncts that apply to partition columns and specify these as Constraint#predicate
         HivePartitionResult hivePartitionResult = partitionManager.getPartitions(metastore, tableHandle, new Constraint<>(entireColumnDomain), session);
+        TupleDomain<Subfield> domainPredicate;
 
-        TupleDomain<Subfield> domainPredicate = withColumnDomains(ImmutableMap.<Subfield, Domain>builder()
-                .putAll(hivePartitionResult.getUnenforcedConstraint()
-                        .transform(HiveMetadata::toSubfield)
-                        .getDomains()
-                        .orElse(ImmutableMap.of()))
-                .putAll(decomposedFilter.getTupleDomain()
-                        .transform(subfield -> !isEntireColumn(subfield) ? subfield : null)
-                        .getDomains()
-                        .orElse(ImmutableMap.of()))
-                .build());
+        if (decomposedFilter.getTupleDomain().isNone()) {
+            domainPredicate = TupleDomain.none();
+        }
+        else {
+            domainPredicate = withColumnDomains(ImmutableMap.<Subfield, Domain>builder()
+                    .putAll(hivePartitionResult.getUnenforcedConstraint()
+                            .transform(HiveMetadata::toSubfield)
+                            .getDomains()
+                            .orElse(ImmutableMap.of()))
+                    .putAll(decomposedFilter.getTupleDomain()
+                            .transform(subfield -> !isEntireColumn(subfield) ? subfield : null)
+                            .getDomains()
+                            .orElse(ImmutableMap.of()))
+                    .build());
+        }
 
         Set<String> predicateColumnNames = new HashSet<>();
-        domainPredicate.getDomains().get().keySet().stream()
-                .map(Subfield::getRootName)
-                .forEach(predicateColumnNames::add);
-        extractAll(decomposedFilter.getRemainingExpression()).stream()
-                .map(VariableReferenceExpression::getName)
-                .forEach(predicateColumnNames::add);
+        if (!domainPredicate.isNone()) {
+            domainPredicate.getDomains().get().keySet().stream()
+                    .map(Subfield::getRootName)
+                    .forEach(predicateColumnNames::add);
+            extractAll(decomposedFilter.getRemainingExpression()).stream()
+                    .map(VariableReferenceExpression::getName)
+                    .forEach(predicateColumnNames::add);
+        }
 
         Map<String, HiveColumnHandle> predicateColumns = predicateColumnNames.stream()
                 .map(columnHandles::get)
@@ -1935,7 +1943,13 @@ public class HiveMetadata
         List<ColumnHandle> partitionColumns = ImmutableList.copyOf(hiveLayoutHandle.getPartitionColumns());
         List<HivePartition> partitions = hiveLayoutHandle.getPartitions().get();
 
-        TupleDomain<ColumnHandle> predicate = createPredicate(partitionColumns, partitions);
+        TupleDomain<ColumnHandle> predicate;
+        if (!hiveLayoutHandle.getDomainPredicate().isNone()) {
+            predicate = createPredicate(partitionColumns, partitions);
+        }
+        else {
+            predicate = TupleDomain.none();
+        }
 
         Optional<DiscretePredicates> discretePredicates = Optional.empty();
         if (!partitionColumns.isEmpty()) {
