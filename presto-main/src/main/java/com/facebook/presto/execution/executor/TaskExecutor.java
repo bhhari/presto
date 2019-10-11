@@ -189,6 +189,11 @@ public class TaskExecutor
             MultilevelSplitQueue splitQueue,
             Ticker ticker)
     {
+
+        runnerThreads = 1;
+        maximumNumberOfDriversPerTask = 1;
+        guaranteedNumberOfDriversPerTask = 1;
+
         checkArgument(runnerThreads > 0, "runnerThreads must be at least 1");
         checkArgument(guaranteedNumberOfDriversPerTask > 0, "guaranteedNumberOfDriversPerTask must be at least 1");
         checkArgument(maximumNumberOfDriversPerTask > 0, "maximumNumberOfDriversPerTask must be at least 1");
