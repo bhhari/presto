@@ -19,7 +19,6 @@ import com.facebook.presto.spi.predicate.TupleDomain;
 
 import java.util.Optional;
 
-import static com.facebook.presto.spi.relation.LogicalRowExpressions.TRUE_CONSTANT;
 import static java.util.Objects.requireNonNull;
 
 public interface DomainTranslator
@@ -29,7 +28,7 @@ public interface DomainTranslator
         /**
          * Given an expression and values domain, determine whether the expression qualifies as a
          * "column" and return its desired representation.
-         *
+         * <p>
          * Return Optional.empty() if expression doesn't qualify.
          */
         Optional<T> extract(RowExpression expression, Domain domain);
@@ -54,21 +53,6 @@ public interface DomainTranslator
         {
             this.tupleDomain = requireNonNull(tupleDomain, "tupleDomain is null");
             this.remainingExpression = requireNonNull(remainingExpression, "remainingExpression is null");
-        }
-
-        public ExtractionResult intersect(ExtractionResult other)
-        {
-            RowExpression newRemainingExpression;
-            if (other.getRemainingExpression().equals(TRUE_CONSTANT)) {
-                newRemainingExpression = this.remainingExpression;
-            }
-            else if (this.remainingExpression.equals(TRUE_CONSTANT)) {
-                newRemainingExpression = other.getRemainingExpression();
-            }
-            else {
-                newRemainingExpression = LogicalRowExpressions.and(other.getRemainingExpression(), this.remainingExpression);
-            }
-            return new ExtractionResult(tupleDomain.intersect(other.getTupleDomain()), newRemainingExpression);
         }
 
         public TupleDomain<T> getTupleDomain()
