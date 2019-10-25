@@ -23,12 +23,11 @@ public class LongInputStreamV1
         implements LongInputStream
 {
     private static final int MIN_REPEAT_SIZE = 3;
-    private static final int MAX_LITERAL_SIZE = 128;
 
     private final OrcInputStream input;
     private final boolean signed;
-    private final long[] literals = new long[MAX_LITERAL_SIZE];
-    private int numLiterals;
+    private long repeatBase;
+    private int numInRun;
     private int delta;
     private int used;
     private boolean repeat;
@@ -41,8 +40,7 @@ public class LongInputStreamV1
         lastReadInputCheckpoint = input.getCheckpoint();
     }
 
-    // This comes from the Apache Hive ORC code
-    private void readValues()
+    private void readHeader()
             throws IOException
     {
         lastReadInputCheckpoint = input.getCheckpoint();
@@ -53,7 +51,7 @@ public class LongInputStreamV1
         }
 
         if (control < 0x80) {
-            numLiterals = control + MIN_REPEAT_SIZE;
+            numInRun = control + MIN_REPEAT_SIZE;
             used = 0;
             repeat = true;
             delta = input.read();
@@ -64,15 +62,12 @@ public class LongInputStreamV1
             // convert from 0 to 255 to -128 to 127 by converting to a signed byte
             // noinspection SillyAssignment
             delta = (byte) delta;
-            literals[0] = LongDecode.readVInt(signed, input);
+            repeatBase = input.readVarint(signed);
         }
         else {
-            numLiterals = 0x100 - control;
+            numInRun = 0x100 - control;
             used = 0;
             repeat = false;
-            for (int i = 0; i < numLiterals; ++i) {
-                literals[i] = LongDecode.readVInt(signed, input);
-            }
         }
     }
 
@@ -82,15 +77,16 @@ public class LongInputStreamV1
             throws IOException
     {
         long result;
-        if (used == numLiterals) {
-            readValues();
+        if (used == numInRun) {
+            readHeader();
         }
         if (repeat) {
-            result = literals[0] + (used++) * delta;
+            result = repeatBase + (used) * delta;
         }
         else {
-            result = literals[used++];
+            result = input.readVarint(signed);
         }
+        used++;
         return result;
     }
 
@@ -105,18 +101,11 @@ public class LongInputStreamV1
             throws IOException
     {
         LongStreamV1Checkpoint v1Checkpoint = (LongStreamV1Checkpoint) checkpoint;
-
-        // if the checkpoint is within the current buffer, just adjust the pointer
-        if (lastReadInputCheckpoint == v1Checkpoint.getInputStreamCheckpoint() && v1Checkpoint.getOffset() <= numLiterals) {
-            used = v1Checkpoint.getOffset();
-        }
-        else {
-            // otherwise, discard the buffer and start over
-            input.seekToCheckpoint(v1Checkpoint.getInputStreamCheckpoint());
-            numLiterals = 0;
-            used = 0;
-            skip(v1Checkpoint.getOffset());
-        }
+        // Discard the buffer and start over
+        input.seekToCheckpoint(v1Checkpoint.getInputStreamCheckpoint());
+        numInRun = 0;
+        used = 0;
+        skip(v1Checkpoint.getOffset());
     }
 
     @Override
@@ -124,10 +113,13 @@ public class LongInputStreamV1
             throws IOException
     {
         while (items > 0) {
-            if (used == numLiterals) {
-                readValues();
+            if (used == numInRun) {
+                readHeader();
             }
-            long consume = Math.min(items, numLiterals - used);
+            long consume = Math.min(items, numInRun - used);
+            if (!repeat) {
+                input.skipVarints(consume);
+            }
             used += consume;
             items -= consume;
         }
