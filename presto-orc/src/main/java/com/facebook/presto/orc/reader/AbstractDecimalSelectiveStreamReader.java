@@ -42,6 +42,7 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.slice.SizeOf.sizeOf;
+import static java.util.Arrays.copyOf;
 import static java.util.Objects.requireNonNull;
 
 public abstract class AbstractDecimalSelectiveStreamReader
@@ -266,10 +267,7 @@ public abstract class AbstractDecimalSelectiveStreamReader
         boolean includeNulls = nullsAllowed && presentStream != null;
 
         if (positionCount == outputPositionCount) {
-            Block block = makeBlock(positionCount, nullsAllowed, nulls, values);
-            nulls = null;
-            values = null;
-            return block;
+            return makeBlock(positionCount, nullsAllowed, copyOf(nulls, positionCount), copyOf(values, positionCount));
         }
 
         long[] valuesCopy = new long[valuesPerPosition * positionCount];
