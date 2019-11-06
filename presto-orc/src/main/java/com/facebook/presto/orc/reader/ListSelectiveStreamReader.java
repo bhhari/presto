@@ -60,6 +60,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static java.lang.Math.toIntExact;
+import static java.util.Arrays.copyOf;
 import static java.util.Objects.requireNonNull;
 
 public class ListSelectiveStreamReader
@@ -524,10 +525,7 @@ public class ListSelectiveStreamReader
         boolean mayHaveNulls = nullsAllowed && presentStream != null;
 
         if (positionCount == outputPositionCount) {
-            Block block = ArrayBlock.fromElementBlock(positionCount, Optional.ofNullable(mayHaveNulls ? nulls : null), offsets, makeElementBlock());
-            nulls = null;
-            offsets = null;
-            return block;
+            return ArrayBlock.fromElementBlock(positionCount, Optional.ofNullable(mayHaveNulls ? copyOf(nulls, positionCount) : null), copyOf(offsets, positionCount + 1), makeElementBlock());
         }
 
         int[] offsetsCopy = new int[positionCount + 1];
@@ -645,7 +643,7 @@ public class ListSelectiveStreamReader
     private void compactValues(int[] positions, int positionCount, boolean compactNulls)
     {
         if (outputPositionsReadOnly) {
-            outputPositions = Arrays.copyOf(outputPositions, outputPositionCount);
+            outputPositions = copyOf(outputPositions, outputPositionCount);
             outputPositionsReadOnly = false;
         }
 
