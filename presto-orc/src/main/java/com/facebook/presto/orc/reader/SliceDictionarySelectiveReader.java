@@ -60,6 +60,7 @@ import static com.google.common.base.Verify.verify;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static io.airlift.slice.Slices.wrappedBuffer;
 import static java.lang.Math.toIntExact;
+import static java.util.Arrays.copyOf;
 import static java.util.Arrays.fill;
 import static java.util.Objects.requireNonNull;
 
@@ -378,8 +379,7 @@ public class SliceDictionarySelectiveReader
         }
 
         if (positionCount == outputPositionCount) {
-            DictionaryBlock block = new DictionaryBlock(positionCount, dictionary, values);
-            values = null;
+            DictionaryBlock block = new DictionaryBlock(positionCount, dictionary, copyOf(values, positionCount));
             return block;
         }
 
@@ -423,7 +423,7 @@ public class SliceDictionarySelectiveReader
     private void compactValues(int[] positions, int positionCount)
     {
         if (outputPositionsReadOnly) {
-            outputPositions = Arrays.copyOf(outputPositions, outputPositionCount);
+            outputPositions = copyOf(outputPositions, outputPositionCount);
             outputPositionsReadOnly = false;
         }
         int positionIndex = 0;
@@ -511,8 +511,8 @@ public class SliceDictionarySelectiveReader
 
             // We must always create a new dictionary array because the previous dictionary may still be referenced
             // The first elements of the dictionary are from the stripe dictionary, then the row group dictionary elements, and then a null
-            byte[] rowGroupDictionaryData = java.util.Arrays.copyOf(stripeDictionaryData, stripeDictionaryOffsetVector[stripeDictionarySize] + toIntExact(dataLength));
-            int[] rowGroupDictionaryOffsetVector = Arrays.copyOf(stripeDictionaryOffsetVector, stripeDictionarySize + rowGroupDictionarySize + 2);
+            byte[] rowGroupDictionaryData = copyOf(stripeDictionaryData, stripeDictionaryOffsetVector[stripeDictionarySize] + toIntExact(dataLength));
+            int[] rowGroupDictionaryOffsetVector = copyOf(stripeDictionaryOffsetVector, stripeDictionarySize + rowGroupDictionarySize + 2);
 
             // read dictionary values
             ByteArrayInputStream dictionaryDataStream = rowGroupDictionaryDataStreamSource.openStream();

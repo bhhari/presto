@@ -53,6 +53,7 @@ import static io.airlift.slice.SizeOf.sizeOf;
 import static io.airlift.units.DataSize.Unit.GIGABYTE;
 import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
+import static java.util.Arrays.copyOf;
 import static java.util.Objects.requireNonNull;
 
 public class SliceDirectSelectiveStreamReader
@@ -368,18 +369,14 @@ public class SliceDirectSelectiveStreamReader
             compactValues(positions, positionCount, includeNulls);
         }
 
-        Block block = new VariableWidthBlock(positionCount, dataAsSlice, offsets, Optional.ofNullable(includeNulls ? nulls : null));
-        dataAsSlice = null;
-        data = null;
-        offsets = null;
-        nulls = null;
+        Block block = new VariableWidthBlock(positionCount, Slices.copyOf(dataAsSlice), copyOf(offsets, positionCount+1), Optional.ofNullable(includeNulls ? copyOf(nulls, positionCount) : null));
         return block;
     }
 
     private void compactValues(int[] positions, int positionCount, boolean includeNulls)
     {
         if (outputPositionsReadOnly) {
-            outputPositions = Arrays.copyOf(outputPositions, outputPositionCount);
+            outputPositions = copyOf(outputPositions, outputPositionCount);
             outputPositionsReadOnly = false;
         }
         int positionIndex = 0;
