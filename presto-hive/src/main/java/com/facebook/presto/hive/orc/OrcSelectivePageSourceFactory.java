@@ -556,7 +556,7 @@ public class OrcSelectivePageSourceFactory
      * Split filter expression into groups of conjuncts that depend on the same set of inputs,
      * then compile each group into FilterFunction.
      */
-    private static List<FilterFunction> toFilterFunctions(RowExpression filter, ConnectorSession session, DeterminismEvaluator determinismEvaluator, PredicateCompiler predicateCompiler)
+    public static List<FilterFunction> toFilterFunctions(RowExpression filter, ConnectorSession session, DeterminismEvaluator determinismEvaluator, PredicateCompiler predicateCompiler)
     {
         if (TRUE_CONSTANT.equals(filter)) {
             return ImmutableList.of();
