@@ -61,6 +61,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static java.lang.Math.toIntExact;
+import static java.util.Arrays.copyOf;
 import static java.util.Objects.requireNonNull;
 
 public class MapDirectSelectiveStreamReader
@@ -507,10 +508,7 @@ public class MapDirectSelectiveStreamReader
                 valueBlock = valueReader.getBlock(nestedOutputPositions, nestedOutputPositionCount);
             }
 
-            Block block = outputType.createBlockFromKeyValue(positionCount, Optional.ofNullable(includeNulls ? nulls : null), offsets, keyBlock, valueBlock);
-            nulls = null;
-            offsets = null;
-            return block;
+            return outputType.createBlockFromKeyValue(positionCount, Optional.ofNullable(includeNulls ? copyOf(nulls, positionCount) : null), copyOf(offsets, positionCount + 1), keyBlock, valueBlock);
         }
 
         int[] offsetsCopy = new int[positionCount + 1];
@@ -603,7 +601,7 @@ public class MapDirectSelectiveStreamReader
     private void compactValues(int[] positions, int positionCount, boolean compactNulls)
     {
         if (outputPositionsReadOnly) {
-            outputPositions = Arrays.copyOf(outputPositions, outputPositionCount);
+            outputPositions = copyOf(outputPositions, outputPositionCount);
             outputPositionsReadOnly = false;
         }
 
@@ -640,7 +638,7 @@ public class MapDirectSelectiveStreamReader
         outputPositionCount = positionCount;
     }
 
-    private BlockLease newLease(Block block, BlockLease...fieldBlockLeases)
+    private BlockLease newLease(Block block, BlockLease... fieldBlockLeases)
     {
         valuesInUse = true;
         return ClosingBlockLease.newLease(block, () -> {
