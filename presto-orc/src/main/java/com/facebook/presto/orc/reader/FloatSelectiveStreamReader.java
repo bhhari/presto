@@ -43,6 +43,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.slice.SizeOf.sizeOf;
 import static java.lang.Float.floatToRawIntBits;
+import static java.util.Arrays.copyOf;
 import static java.util.Objects.requireNonNull;
 
 public class FloatSelectiveStreamReader
@@ -328,10 +329,7 @@ public class FloatSelectiveStreamReader
 
         boolean includeNulls = nullsAllowed && presentStream != null;
         if (positionCount == outputPositionCount) {
-            Block block = new IntArrayBlock(positionCount, Optional.ofNullable(includeNulls ? nulls : null), values);
-            nulls = null;
-            values = null;
-            return block;
+            return new IntArrayBlock(positionCount, Optional.ofNullable(includeNulls ? copyOf(nulls, positionCount) : null), copyOf(values, positionCount));
         }
 
         int[] valuesCopy = new int[positionCount];
@@ -394,7 +392,7 @@ public class FloatSelectiveStreamReader
     private void compactValues(int[] positions, int positionCount, boolean compactNulls)
     {
         if (outputPositionsReadOnly) {
-            outputPositions = Arrays.copyOf(outputPositions, outputPositionCount);
+            outputPositions = copyOf(outputPositions, outputPositionCount);
             outputPositionsReadOnly = false;
         }
 
