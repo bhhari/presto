@@ -58,6 +58,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.airlift.slice.SizeOf.sizeOf;
+import static java.util.Arrays.copyOf;
 import static java.util.Objects.requireNonNull;
 
 public class StructSelectiveStreamReader
@@ -311,7 +312,7 @@ public class StructSelectiveStreamReader
 
         if (nestedOutputPositionCount < nestedPositionCount) {
             if (outputPositionsReadOnly) {
-                outputPositions = Arrays.copyOf(outputPositions, outputPositionCount);
+                outputPositions = copyOf(outputPositions, outputPositionCount);
                 outputPositionsReadOnly = false;
             }
 
@@ -393,9 +394,7 @@ public class StructSelectiveStreamReader
 
         boolean includeNulls = nullsAllowed && presentStream != null;
         if (outputPositionCount == positionCount) {
-            Block block = RowBlock.fromFieldBlocks(positionCount, Optional.ofNullable(includeNulls ? nulls : null), getFieldBlocks());
-            nulls = null;
-            return block;
+            return RowBlock.fromFieldBlocks(positionCount, Optional.ofNullable(includeNulls ? copyOf(nulls, positionCount) : null), getFieldBlocks());
         }
 
         boolean[] nullsCopy = null;
@@ -493,7 +492,7 @@ public class StructSelectiveStreamReader
     private void compactValues(int[] positions, int positionCount, boolean compactNulls)
     {
         if (outputPositionsReadOnly) {
-            outputPositions = Arrays.copyOf(outputPositions, outputPositionCount);
+            outputPositions = copyOf(outputPositions, outputPositionCount);
             outputPositionsReadOnly = false;
         }
 
