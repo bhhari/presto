@@ -43,6 +43,7 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static io.airlift.slice.SizeOf.sizeOf;
+import static java.util.Arrays.copyOf;
 import static java.util.Objects.requireNonNull;
 
 public class BooleanSelectiveStreamReader
@@ -350,10 +351,7 @@ public class BooleanSelectiveStreamReader
 
         boolean includeNulls = nullsAllowed && presentStream != null;
         if (positionCount == outputPositionCount) {
-            Block block = new ByteArrayBlock(positionCount, Optional.ofNullable(includeNulls ? nulls : null), values);
-            nulls = null;
-            values = null;
-            return block;
+            return new ByteArrayBlock(positionCount, Optional.ofNullable(includeNulls ? copyOf(nulls, positionCount) : null), copyOf(values, positionCount));
         }
 
         byte[] valuesCopy = new byte[positionCount];
@@ -421,7 +419,7 @@ public class BooleanSelectiveStreamReader
     private void compactValues(int[] positions, int positionCount, boolean compactNulls)
     {
         if (outputPositionsReadOnly) {
-            outputPositions = Arrays.copyOf(outputPositions, outputPositionCount);
+            outputPositions = copyOf(outputPositions, outputPositionCount);
             outputPositionsReadOnly = false;
         }
 
