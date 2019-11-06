@@ -33,6 +33,7 @@ import static com.facebook.presto.spi.type.IntegerType.INTEGER;
 import static com.facebook.presto.spi.type.SmallintType.SMALLINT;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.toIntExact;
+import static java.util.Arrays.copyOf;
 import static java.util.Objects.requireNonNull;
 
 abstract class AbstractLongSelectiveStreamReader
@@ -163,16 +164,7 @@ abstract class AbstractLongSelectiveStreamReader
     private Block getLongArrayBlock(int[] positions, int positionCount, boolean includeNulls)
     {
         if (positionCount == outputPositionCount) {
-            LongArrayBlock block;
-            if (includeNulls) {
-                block = new LongArrayBlock(positionCount, Optional.ofNullable(nulls), values);
-                nulls = null;
-            }
-            else {
-                block = new LongArrayBlock(positionCount, Optional.empty(), values);
-            }
-            values = null;
-            return block;
+            return new LongArrayBlock(positionCount, includeNulls ? Optional.ofNullable(copyOf(nulls, positionCount)) : Optional.empty(), copyOf(values, positionCount));
         }
 
         long[] valuesCopy = new long[positionCount];
@@ -210,7 +202,7 @@ abstract class AbstractLongSelectiveStreamReader
     private Block getIntArrayBlock(int[] positions, int positionCount, boolean includeNulls)
     {
         if (intValuesPopulated && positionCount == outputPositionCount) {
-            return new IntArrayBlock(positionCount, Optional.ofNullable(includeNulls ? nulls : null), intValues);
+            return new IntArrayBlock(positionCount, Optional.ofNullable(includeNulls ? copyOf(nulls, positionCount) : null), copyOf(intValues, positionCount));
         }
 
         int[] valuesCopy = new int[positionCount];
@@ -247,7 +239,7 @@ abstract class AbstractLongSelectiveStreamReader
     private Block getShortArrayBlock(int[] positions, int positionCount, boolean includeNulls)
     {
         if (shortValuesPopulated && positionCount == outputPositionCount) {
-            return new ShortArrayBlock(positionCount, Optional.ofNullable(includeNulls ? nulls : null), shortValues);
+            return new ShortArrayBlock(positionCount, Optional.ofNullable(includeNulls ? copyOf(nulls, positionCount) : null), copyOf(shortValues, positionCount));
         }
 
         short[] valuesCopy = new short[positionCount];
@@ -293,7 +285,7 @@ abstract class AbstractLongSelectiveStreamReader
     private void compactValues(int[] positions, int positionCount, boolean compactNulls)
     {
         if (outputPositionsReadOnly) {
-            outputPositions = Arrays.copyOf(outputPositions, outputPositionCount);
+            outputPositions = copyOf(outputPositions, outputPositionCount);
             outputPositionsReadOnly = false;
         }
 
