@@ -138,6 +138,7 @@ public class FilteringPageSource
             List<FilterFunction> filterFunctions =
                     toFilterFunctions(
                             replaceExpression(remainingPredicate, variableToInput),
+                            Optional.empty(),
                             session, rowExpressionService.getDeterminismEvaluator(),
                             rowExpressionService.getPredicateCompiler());
             RuntimeException[] errors = new RuntimeException[positionCount];
