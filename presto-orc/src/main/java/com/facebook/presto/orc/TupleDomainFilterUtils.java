@@ -128,6 +128,11 @@ public class TupleDomainFilterUtils
                         nullAllowed);
             }
         }
+
+        if (rangeFilters.get(0) instanceof DoubleRange || rangeFilters.get(0) instanceof  FloatRange) {
+           return MultiRange.of(rangeFilters, nullAllowed, ((SortedRangeSet) values).isContinguous());
+        }
+
         return MultiRange.of(rangeFilters, nullAllowed);
     }
 

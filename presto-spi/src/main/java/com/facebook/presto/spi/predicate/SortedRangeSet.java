@@ -353,6 +353,27 @@ public final class SortedRangeSet
         return Objects.equals(this.lowIndexedRanges, other.lowIndexedRanges);
     }
 
+    public boolean isContinguous()
+    {
+        List<Range> orderedRanges = getOrderedRanges();
+        Iterator<Range> iterator = orderedRanges.iterator();
+        Range current = null;
+        if (iterator.hasNext()) {
+            current = iterator.next();
+        }
+
+        while (iterator.hasNext()) {
+            Range next = iterator.next();
+            if (!(current.getHigh().getBound() == Marker.Bound.BELOW
+                    && next.getLow().getBound() == Marker.Bound.ABOVE
+                    && current.getHigh().compareValue(next.getLow()) == 0)) {
+                return false;
+            }
+            current = next;
+        }
+        return true;
+    }
+
     @Override
     public String toString(ConnectorSession session)
     {

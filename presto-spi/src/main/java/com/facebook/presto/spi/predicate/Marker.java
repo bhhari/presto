@@ -245,6 +245,10 @@ public final class Marker
         return compare;
     }
 
+    public int compareValue(Marker o) {
+        return type.compareTo(valueBlock.get(), 0, o.valueBlock.get(), 0);
+    }
+
     public static Marker min(Marker marker1, Marker marker2)
     {
         return marker1.compareTo(marker2) <= 0 ? marker1 : marker2;
