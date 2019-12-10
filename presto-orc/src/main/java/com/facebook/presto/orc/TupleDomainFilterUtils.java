@@ -129,8 +129,8 @@ public class TupleDomainFilterUtils
             }
         }
 
-        if (rangeFilters.get(0) instanceof DoubleRange || rangeFilters.get(0) instanceof  FloatRange) {
-           return MultiRange.of(rangeFilters, nullAllowed, ((SortedRangeSet) values).isContinguous());
+        if (rangeFilters.get(0) instanceof DoubleRange || rangeFilters.get(0) instanceof FloatRange) {
+            return MultiRange.of(rangeFilters, nullAllowed, ((SortedRangeSet) values).isContinguous());
         }
 
         return MultiRange.of(rangeFilters, nullAllowed);

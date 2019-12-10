@@ -245,7 +245,8 @@ public final class Marker
         return compare;
     }
 
-    public int compareValue(Marker o) {
+    public int compareValue(Marker o)
+    {
         return type.compareTo(valueBlock.get(), 0, o.valueBlock.get(), 0);
     }
 

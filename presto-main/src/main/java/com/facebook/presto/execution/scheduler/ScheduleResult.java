@@ -14,6 +14,7 @@
 package com.facebook.presto.execution.scheduler;
 
 import com.facebook.presto.execution.RemoteTask;
+import com.facebook.presto.spi.trace.Trace;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ListenableFuture;
 
@@ -77,6 +78,9 @@ public class ScheduleResult
         this.blocked = requireNonNull(blocked, "blocked is null");
         this.blockedReason = requireNonNull(blockedReason, "blockedReason is null");
         this.splitsScheduled = splitsScheduled;
+        if (Trace.isTraceSplits()) {
+            Trace.trace(String.format("ScheduledResult : %s", this.toString()));
+        }
     }
 
     public boolean isFinished()

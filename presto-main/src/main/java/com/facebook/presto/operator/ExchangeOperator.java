@@ -21,6 +21,7 @@ import com.facebook.presto.spi.ConnectorId;
 import com.facebook.presto.spi.Page;
 import com.facebook.presto.spi.UpdatablePageSource;
 import com.facebook.presto.spi.plan.PlanNodeId;
+import com.facebook.presto.spi.trace.Trace;
 import com.facebook.presto.split.RemoteSplit;
 import com.google.common.util.concurrent.ListenableFuture;
 
@@ -180,6 +181,10 @@ public class ExchangeOperator
         }
 
         operatorContext.recordRawInput(page.getSizeInBytes(), page.getPositionCount());
+
+        if (Trace.isTraceExhange()) {
+            Trace.trace(String.format("Exchange : positions %s size %s", page.getPositionCount(), page.getSizeInBytes()));
+        }
 
         Page deserializedPage = serde.deserialize(page);
         operatorContext.recordProcessedInput(deserializedPage.getSizeInBytes(), page.getPositionCount());

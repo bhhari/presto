@@ -1229,7 +1229,6 @@ public interface TupleDomainFilter
             return new MultiRange(filters, nullAllowed, nanAllowed);
         }
 
-
         @Override
         public boolean testDouble(double value)
         {

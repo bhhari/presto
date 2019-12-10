@@ -21,6 +21,7 @@ import com.facebook.presto.metadata.InternalNodeManager;
 import com.facebook.presto.metadata.Split;
 import com.facebook.presto.spi.ConnectorId;
 import com.facebook.presto.spi.HostAddress;
+import com.facebook.presto.spi.trace.Trace;
 import com.google.common.base.Supplier;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
@@ -208,7 +209,11 @@ public class NodeScheduler
             selectedCount++;
         }
 
-        return selectedNodes.build();
+        ImmutableList<InternalNode> build = selectedNodes.build();
+        if (Trace.isTraceSplits()) {
+            Trace.trace(String.format("Splits : limit %s and returned %s with trace %s", limit, build, Trace.stackTrace(10)));
+        }
+        return build;
     }
 
     public static ResettableRandomizedIterator<InternalNode> randomizedNodes(NodeMap nodeMap, boolean includeCoordinator, Set<InternalNode> excludedNodes)
