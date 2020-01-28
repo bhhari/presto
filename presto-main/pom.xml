@@ -48,6 +48,12 @@
 
         <dependency>
             <groupId>com.facebook.presto</groupId>
+            <artifactId>presto-jni</artifactId>
+        </dependency>
+
+
+        <dependency>
+            <groupId>com.facebook.presto</groupId>
             <artifactId>presto-bytecode</artifactId>
         </dependency>
 
@@ -393,6 +399,12 @@
         <dependency>
             <groupId>com.facebook.presto</groupId>
             <artifactId>presto-plugin-toolkit</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.facebook.presto</groupId>
+            <artifactId>presto-jni</artifactId>
+            <version>0.231-SNAPSHOT</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 

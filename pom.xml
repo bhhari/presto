@@ -100,6 +100,7 @@
         <module>presto-teradata-functions</module>
         <module>presto-example-http</module>
         <module>presto-local-file</module>
+        <module>presto-jni</module>
         <module>presto-tpch</module>
         <module>presto-tpcds</module>
         <module>presto-raptor</module>

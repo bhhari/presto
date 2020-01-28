@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.operator;
 
+import com.facebook.presto.jni.PrestoJNILoader;
 import com.facebook.presto.memory.context.LocalMemoryContext;
 import com.facebook.presto.metadata.Split;
 import com.facebook.presto.operator.project.CursorProcessor;
@@ -43,6 +44,7 @@ import io.airlift.units.DataSize;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -54,7 +56,7 @@ import static com.facebook.presto.memory.context.AggregatedMemoryContext.newSimp
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
-public class ScanFilterAndProjectOperator
+public class ScanFilterAndProjectOperator extends PrestoNativeOperator
         implements SourceOperator, Closeable
 {
     private final OperatorContext operatorContext;
@@ -106,6 +108,7 @@ public class ScanFilterAndProjectOperator
         this.mergingOutput = requireNonNull(mergingOutput, "mergingOutput is null");
 
         this.pageBuilder = new PageBuilder(ImmutableList.copyOf(requireNonNull(types, "types is null")));
+        System.out.println(new String(apply(ByteBuffer.wrap("Ping!!! ".getBytes())).array()));
     }
 
     @Override
