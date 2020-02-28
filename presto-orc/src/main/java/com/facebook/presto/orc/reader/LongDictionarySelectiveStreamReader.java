@@ -57,7 +57,6 @@ public class LongDictionarySelectiveStreamReader
     private static final byte FILTER_PASSED = 1;
     private static final byte FILTER_FAILED = 2;
 
-    private final StreamDescriptor streamDescriptor;
     @Nullable
     private final TupleDomainFilter filter;
     private final boolean nonDeterministicFilter;
@@ -92,10 +91,9 @@ public class LongDictionarySelectiveStreamReader
             Optional<Type> outputType,
             LocalMemoryContext systemMemoryContext)
     {
-        super(outputType);
+        super(outputType, streamDescriptor);
         requireNonNull(filter, "filter is null");
         checkArgument(filter.isPresent() || outputRequired, "filter must be present if output is not required");
-        this.streamDescriptor = requireNonNull(streamDescriptor, "streamDescriptor is null");
         this.filter = filter.orElse(null);
         this.systemMemoryContext = requireNonNull(systemMemoryContext, "systemMemoryContext is null");
 

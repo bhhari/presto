@@ -13,6 +13,9 @@
  */
 package com.facebook.presto.orc.reader;
 
+import com.facebook.presto.orc.OrcCorruptionException;
+import com.facebook.presto.orc.StreamDescriptor;
+import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.block.Block;
 import com.facebook.presto.spi.block.BlockLease;
 import com.facebook.presto.spi.block.ClosingBlockLease;
@@ -26,6 +29,7 @@ import javax.annotation.Nullable;
 import java.util.Optional;
 
 import static com.facebook.presto.array.Arrays.ensureCapacity;
+import static com.facebook.presto.orc.OrcErrorCode.ORC_BAD_DATA;
 import static com.facebook.presto.spi.type.BigintType.BIGINT;
 import static com.facebook.presto.spi.type.DateType.DATE;
 import static com.facebook.presto.spi.type.IntegerType.INTEGER;
@@ -38,6 +42,7 @@ abstract class AbstractLongSelectiveStreamReader
         implements SelectiveStreamReader
 {
     protected final boolean outputRequired;
+    protected final StreamDescriptor streamDescriptor;
     @Nullable
     protected final Type outputType;
 
@@ -57,10 +62,11 @@ abstract class AbstractLongSelectiveStreamReader
 
     private boolean valuesInUse;
 
-    protected AbstractLongSelectiveStreamReader(Optional<Type> outputType)
+    protected AbstractLongSelectiveStreamReader(Optional<Type> outputType, StreamDescriptor streamDescriptor)
     {
         this.outputRequired = requireNonNull(outputType, "outputType is null").isPresent();
         this.outputType = outputType.orElse(null);
+        this.streamDescriptor = requireNonNull(streamDescriptor, "streamDescriptor is null");
     }
 
     protected void prepareNextRead(int positionCount, boolean withNulls)
@@ -130,7 +136,12 @@ abstract class AbstractLongSelectiveStreamReader
             return newLease(new ShortArrayBlock(positionCount, Optional.ofNullable(includeNulls ? nulls : null), shortValues));
         }
 
-        throw new UnsupportedOperationException("Unsupported type: " + outputType);
+        throw new PrestoException(ORC_BAD_DATA, new OrcCorruptionException(
+                streamDescriptor.getOrcDataSourceId(),
+                "Can not read SQL type %s from ORC stream %s of type %s",
+                outputType,
+                streamDescriptor.getStreamName(),
+                streamDescriptor.getOrcTypeKind()));
     }
 
     private BlockLease newLease(Block block)
@@ -155,7 +166,12 @@ abstract class AbstractLongSelectiveStreamReader
             return getShortArrayBlock(positions, positionCount, includeNulls);
         }
 
-        throw new UnsupportedOperationException("Unsupported type: " + outputType);
+        throw new PrestoException(ORC_BAD_DATA, new OrcCorruptionException(
+                streamDescriptor.getOrcDataSourceId(),
+                "Can not read SQL type %s from ORC stream %s of type %s",
+                outputType,
+                streamDescriptor.getStreamName(),
+                streamDescriptor.getOrcTypeKind()));
     }
 
     private Block getLongArrayBlock(int[] positions, int positionCount, boolean includeNulls)
