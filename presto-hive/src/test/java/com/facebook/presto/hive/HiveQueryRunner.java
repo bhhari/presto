@@ -20,6 +20,8 @@ import com.facebook.presto.execution.QueryManagerConfig.ExchangeMaterializationS
 import com.facebook.presto.hive.authentication.NoHdfsAuthentication;
 import com.facebook.presto.hive.metastore.Database;
 import com.facebook.presto.hive.metastore.file.FileHiveMetastore;
+import com.facebook.presto.hive.metastore.thrift.BridgingHiveMetastore;
+import com.facebook.presto.hive.metastore.thrift.InMemoryHiveMetastore;
 import com.facebook.presto.metadata.QualifiedObjectName;
 import com.facebook.presto.spi.security.Identity;
 import com.facebook.presto.spi.security.PrincipalType;
@@ -146,7 +148,9 @@ public final class HiveQueryRunner
             HdfsConfiguration hdfsConfiguration = new HiveHdfsConfiguration(new HdfsConfigurationInitializer(hiveClientConfig, metastoreClientConfig), ImmutableSet.of());
             HdfsEnvironment hdfsEnvironment = new HdfsEnvironment(hdfsConfiguration, metastoreClientConfig, new NoHdfsAuthentication());
 
-            FileHiveMetastore metastore = new FileHiveMetastore(hdfsEnvironment, baseDir.toURI().toString(), "test");
+            File baseDir1 = new File("/tmp", "metastore");
+            InMemoryHiveMetastore hiveMetastore = new InMemoryHiveMetastore(baseDir1);
+            BridgingHiveMetastore metastore = new BridgingHiveMetastore(hiveMetastore);
             queryRunner.installPlugin(new HivePlugin(HIVE_CATALOG, Optional.of(metastore)));
 
             Map<String, String> hiveProperties = ImmutableMap.<String, String>builder()
