@@ -239,35 +239,37 @@ public class MapDirectSelectiveStreamReader
     public int read(int offset, int[] positions, int positionCount)
             throws IOException
     {
-        checkState(!valuesInUse, "BlockLease hasn't been closed yet");
+        try {
+            checkState(!valuesInUse, "BlockLease hasn't been closed yet");
 
-        if (!rowGroupOpen) {
-            openRowGroup();
+            if (!rowGroupOpen) {
+                openRowGroup();
+            }
+
+            allNulls = false;
+
+            outputPositions = initializeOutputPositions(outputPositions, positions, positionCount);
+
+            offsets = ensureCapacity(offsets, positionCount + 1);
+            offsets[0] = 0;
+
+            nestedLengths = ensureCapacity(nestedLengths, positionCount);
+            nestedOffsets = ensureCapacity(nestedOffsets, positionCount + 1);
+
+            systemMemoryContext.setBytes(getRetainedSizeInBytes());
+
+            if (lengthStream == null) {
+                readAllNulls(positions, positionCount);
+            } else if (presentStream == null) {
+                readNoNulls(offset, positions, positionCount);
+            } else {
+                readWithNulls(offset, positions, positionCount);
+            }
+
+            return outputPositionCount;
+        }catch(Throwable e){
+            throw new IOException(streamDescriptor.getOrcDataSource().getId().toString(), e);
         }
-
-        allNulls = false;
-
-        outputPositions = initializeOutputPositions(outputPositions, positions, positionCount);
-
-        offsets = ensureCapacity(offsets, positionCount + 1);
-        offsets[0] = 0;
-
-        nestedLengths = ensureCapacity(nestedLengths, positionCount);
-        nestedOffsets = ensureCapacity(nestedOffsets, positionCount + 1);
-
-        systemMemoryContext.setBytes(getRetainedSizeInBytes());
-
-        if (lengthStream == null) {
-            readAllNulls(positions, positionCount);
-        }
-        else if (presentStream == null) {
-            readNoNulls(offset, positions, positionCount);
-        }
-        else {
-            readWithNulls(offset, positions, positionCount);
-        }
-
-        return outputPositionCount;
     }
 
     private int readAllNulls(int[] positions, int positionCount)
