@@ -39,18 +39,18 @@ public class Stream
 
     private final int column;
     private final StreamKind streamKind;
-    private final int length;
+    private final long length;
     private final boolean useVInts;
     private final int sequence;
 
     private final Optional<Long> offset;
 
-    public Stream(int column, StreamKind streamKind, int length, boolean useVInts)
+    public Stream(int column, StreamKind streamKind, long length, boolean useVInts)
     {
         this(column, streamKind, length, useVInts, ColumnEncoding.DEFAULT_SEQUENCE_ID, Optional.empty());
     }
 
-    public Stream(int column, StreamKind streamKind, int length, boolean useVInts, int sequence, Optional<Long> offset)
+    public Stream(int column, StreamKind streamKind, long length, boolean useVInts, int sequence, Optional<Long> offset)
     {
         this.column = column;
         this.streamKind = requireNonNull(streamKind, "streamKind is null");
@@ -70,7 +70,7 @@ public class Stream
         return streamKind;
     }
 
-    public int getLength()
+    public long getLength()
     {
         return length;
     }
@@ -112,5 +112,10 @@ public class Stream
                 this.useVInts,
                 this.sequence,
                 Optional.of(offset));
+    }
+
+    public static void main(String[] args)
+    {
+        System.out.println(Math.toIntExact(2412379405L));
     }
 }

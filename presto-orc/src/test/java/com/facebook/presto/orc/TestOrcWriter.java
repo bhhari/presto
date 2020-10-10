@@ -123,7 +123,7 @@ public class TestOrcWriter
                 try (InputStream inputStream = new OrcInputStream(orcDataSource.getId(), Slices.wrappedBuffer(tailBuffer).getInput(), Optional.empty(), Optional.empty(), new TestingHiveOrcAggregatedMemoryContext(), tailBuffer.length)) {
                     StripeFooter stripeFooter = ORC.createMetadataReader().readStripeFooter(footer.getTypes(), inputStream);
 
-                    int size = 0;
+                    long size = 0;
                     boolean dataStreamStarted = false;
                     for (Stream stream : stripeFooter.getStreams()) {
                         if (isIndexStream(stream)) {
