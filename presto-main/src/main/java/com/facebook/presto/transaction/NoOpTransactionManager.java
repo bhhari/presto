@@ -15,6 +15,7 @@ package com.facebook.presto.transaction;
 
 import com.facebook.presto.metadata.CatalogMetadata;
 import com.facebook.presto.spi.ConnectorId;
+import com.facebook.presto.spi.connector.ConnectorCommitResult;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.facebook.presto.spi.function.FunctionNamespaceManager;
 import com.facebook.presto.spi.function.FunctionNamespaceTransactionHandle;
@@ -127,7 +128,7 @@ public class NoOpTransactionManager
     }
 
     @Override
-    public ListenableFuture<?> asyncCommit(TransactionId transactionId)
+    public ListenableFuture<ConnectorCommitResult> asyncCommit(TransactionId transactionId)
     {
         throw new UnsupportedOperationException();
     }

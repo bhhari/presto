@@ -86,6 +86,9 @@ public class QueryInfo
     private final Optional<List<StageId>> runtimeOptimizedStages;
     private final Map<SqlFunctionId, SqlInvokedFunction> addedSessionFunctions;
     private final Set<SqlFunctionId> removedSessionFunctions;
+    private final Optional<List<Integer>> inputsDataTimes;
+    private final Optional<List<Integer>> outputDataTimes;
+
 
     @JsonCreator
     public QueryInfo(
@@ -120,7 +123,9 @@ public class QueryInfo
             @JsonProperty("failedTasks") Optional<List<TaskId>> failedTasks,
             @JsonProperty("runtimeOptimizedStages") Optional<List<StageId>> runtimeOptimizedStages,
             @JsonProperty("addedSessionFunctions") Map<SqlFunctionId, SqlInvokedFunction> addedSessionFunctions,
-            @JsonProperty("removedSessionFunctions") Set<SqlFunctionId> removedSessionFunctions)
+            @JsonProperty("removedSessionFunctions") Set<SqlFunctionId> removedSessionFunctions,
+            @JsonProperty("inputs_mtimes") Optional<List<Integer>> inputsDataTimes,
+            @JsonProperty("output_mtines") Optional<List<Integer>> outputDataTimes)
     {
         requireNonNull(queryId, "queryId is null");
         requireNonNull(session, "session is null");
@@ -146,6 +151,8 @@ public class QueryInfo
         requireNonNull(runtimeOptimizedStages, "runtimeOptimizedStages is null");
         requireNonNull(addedSessionFunctions, "addedSessionFunctions is null");
         requireNonNull(removedSessionFunctions, "removedSessionFunctions is null");
+        requireNonNull(inputsDataTimes, "inputsDataTimes is null");
+        requireNonNull(outputDataTimes, "outputDatatimes is null");
 
         this.queryId = queryId;
         this.session = session;
@@ -180,6 +187,8 @@ public class QueryInfo
         this.runtimeOptimizedStages = runtimeOptimizedStages;
         this.addedSessionFunctions = ImmutableMap.copyOf(addedSessionFunctions);
         this.removedSessionFunctions = ImmutableSet.copyOf(removedSessionFunctions);
+        this.inputsDataTimes = inputsDataTimes;
+        this.outputDataTimes = outputDataTimes;
     }
 
     public static QueryInfo immediateFailureQueryInfo(Session session, String query, URI self, Optional<ResourceGroupId> resourceGroupId, ExecutionFailureInfo failureCause)
@@ -216,7 +225,9 @@ public class QueryInfo
                 Optional.empty(),
                 Optional.empty(),
                 ImmutableMap.of(),
-                ImmutableSet.of());
+                ImmutableSet.of(),
+                Optional.empty(),
+                Optional.empty());
 
         return queryInfo;
     }
@@ -436,5 +447,17 @@ public class QueryInfo
     public boolean isCompleteInfo()
     {
         return completeInfo;
+    }
+
+    @JsonProperty
+    public Optional<List<Integer>> getInputsDataTimes()
+    {
+        return inputsDataTimes;
+    }
+
+    @JsonProperty
+    public Optional<List<Integer>> getOutputDataTimes()
+    {
+        return outputDataTimes;
     }
 }

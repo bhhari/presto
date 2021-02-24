@@ -541,7 +541,9 @@ public class PrestoSparkQueryExecutionFactory
                 Optional.empty(),
                 Optional.empty(),
                 ImmutableMap.of(),
-                ImmutableSet.of());
+                ImmutableSet.of(),
+                Optional.empty(),
+                Optional.empty());
     }
 
     private static StageInfo createStageInfo(QueryId queryId, SubPlan plan, List<TaskInfo> taskInfos)

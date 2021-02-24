@@ -132,7 +132,9 @@ public class TestBasicQueryInfo
                         Optional.empty(),
                         Optional.empty(),
                         ImmutableMap.of(),
-                        ImmutableSet.of()));
+                        ImmutableSet.of(),
+                        Optional.empty(),
+                        Optional.empty()));
 
         assertEquals(basicInfo.getQueryId().getId(), "0");
         assertEquals(basicInfo.getState(), RUNNING);

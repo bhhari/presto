@@ -22,6 +22,7 @@ import com.facebook.presto.metadata.CatalogMetadata;
 import com.facebook.presto.spi.ConnectorId;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorCommitResult;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 import com.facebook.presto.spi.function.FunctionNamespaceManager;
@@ -566,11 +567,12 @@ public class InMemoryTransactionManager
 
             ConnectorTransactionMetadata writeConnector = connectorIdToMetadata.get(writeConnectorId);
             Supplier<ListenableFuture> commitFunctionNamespaceTransactions = () -> functionNamespaceFuture;
-            ListenableFuture<?> commitFuture = Futures.transformAsync(finishingExecutor.submit(writeConnector::commit), ignored -> commitFunctionNamespaceTransactions.get(), directExecutor());
-            ListenableFuture<?> readOnlyCommitFuture = Futures.transformAsync(commitFuture, ignored -> commitReadOnlyConnectors.get(), directExecutor());
+            ListenableFuture<?> commitFuture = finishingExecutor.submit(writeConnector::commit);
+            ListenableFuture<?> commitFunctionNamespaceFutures = Futures.transformAsync(commitFuture, ignored -> commitFunctionNamespaceTransactions.get(), directExecutor());
+            ListenableFuture<?> readOnlyCommitFuture = Futures.transformAsync(commitFunctionNamespaceFutures, ignored -> commitReadOnlyConnectors.get(), directExecutor());
             addExceptionCallback(readOnlyCommitFuture, this::abortInternal);
 
-            return nonCancellationPropagating(readOnlyCommitFuture);
+            return nonCancellationPropagating(Futures.allAsList(readOnlyCommitFuture, commitFuture));
         }
 
         public synchronized ListenableFuture<?> asyncAbort()
@@ -671,11 +673,13 @@ public class InMemoryTransactionManager
                 return transactionHandle;
             }
 
-            public void commit()
+            public ConnectorCommitResult commit()
             {
                 if (finished.compareAndSet(false, true)) {
-                    connector.commit(transactionHandle);
+                    ConnectorCommitResult commit = connector.commit(transactionHandle);
+                    return commit;
                 }
+                return null;
             }
 
             public void abort()

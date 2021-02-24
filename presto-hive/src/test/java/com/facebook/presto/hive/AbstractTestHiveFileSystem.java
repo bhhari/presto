@@ -508,12 +508,12 @@ public abstract class AbstractTestHiveFileSystem
         }
 
         @Override
-        public void createTable(Table table, PrincipalPrivileges privileges)
+        public Optional<Integer> createTable(Table table, PrincipalPrivileges privileges)
         {
             // hack to work around the metastore not being configured for S3 or other FS
             Table.Builder tableBuilder = Table.builder(table);
             tableBuilder.getStorageBuilder().setLocation("/");
-            super.createTable(tableBuilder.build(), privileges);
+            return super.createTable(tableBuilder.build(), privileges);
         }
 
         @Override

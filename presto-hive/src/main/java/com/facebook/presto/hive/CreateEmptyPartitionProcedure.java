@@ -125,7 +125,8 @@ public class CreateEmptyPartitionProcedure
                                 0,
                                 0,
                                 0,
-                                writeInfo.getWritePath().getName().matches("\\d+"))));
+                                writeInfo.getWritePath().getName().matches("\\d+")
+                        )));
 
         hiveMetadata.finishInsert(
                 session,

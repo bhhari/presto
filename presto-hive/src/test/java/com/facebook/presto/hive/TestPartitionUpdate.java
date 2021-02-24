@@ -41,7 +41,8 @@ public class TestPartitionUpdate
                 123,
                 456,
                 789,
-                false);
+                false
+        );
 
         PartitionUpdate actual = CODEC.fromJson(CODEC.toJson(expected));
 

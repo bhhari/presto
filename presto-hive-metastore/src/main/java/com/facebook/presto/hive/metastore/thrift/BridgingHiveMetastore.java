@@ -166,10 +166,11 @@ public class BridgingHiveMetastore
     }
 
     @Override
-    public void createTable(Table table, PrincipalPrivileges principalPrivileges)
+    public Optional<Integer> createTable(Table table, PrincipalPrivileges principalPrivileges)
     {
         checkArgument(!table.getTableType().equals(TEMPORARY_TABLE), "temporary tables must never be stored in the metastore");
-        delegate.createTable(toMetastoreApiTable(table, principalPrivileges));
+        Optional<Integer> table1 = delegate.createTable(toMetastoreApiTable(table, principalPrivileges));
+        return table1;
     }
 
     @Override

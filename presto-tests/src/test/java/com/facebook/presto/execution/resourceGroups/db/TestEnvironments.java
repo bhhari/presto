@@ -62,4 +62,15 @@ public class TestEnvironments
             waitForQueryState(runner, secondQuery, FAILED);
         }
     }
+
+    @Test
+    public void test()
+            throws Exception
+    {
+       String a = new String("1");
+       String b = a;
+       if(a!=b){
+           throw new Exception("s");
+       }
+    }
 }

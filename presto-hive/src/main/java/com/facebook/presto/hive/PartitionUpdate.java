@@ -64,7 +64,8 @@ public class PartitionUpdate
                 rowCount,
                 inMemoryDataSizeInBytes,
                 onDiskDataSizeInBytes,
-                containsNumberedFileNames);
+                containsNumberedFileNames
+        );
     }
 
     public PartitionUpdate(
@@ -211,7 +212,8 @@ public class PartitionUpdate
                     totalRowCount,
                     totalInMemoryDataSizeInBytes,
                     totalOnDiskDataSizeInBytes,
-                    containsNumberedFileNames));
+                    containsNumberedFileNames
+            ));
         }
         return partitionUpdates.build();
     }

@@ -25,6 +25,7 @@ import com.facebook.presto.security.AccessControlManager;
 import com.facebook.presto.spi.ConnectorId;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.WarningCollector;
+import com.facebook.presto.spi.connector.ConnectorCommitResult;
 import com.facebook.presto.spi.memory.MemoryPoolId;
 import com.facebook.presto.spi.resourceGroups.QueryType;
 import com.facebook.presto.spi.resourceGroups.ResourceGroupId;
@@ -410,7 +411,7 @@ public class TestQueryStateMachine
     @Test
     public void testTransitionToCanceledAfterTransitionToFinishing()
     {
-        SettableFuture<?> commitFuture = SettableFuture.create();
+        SettableFuture<ConnectorCommitResult> commitFuture = SettableFuture.create();
         TransactionManager transactionManager = new DelegatingTransactionManager(createTestTransactionManager())
         {
             @Override

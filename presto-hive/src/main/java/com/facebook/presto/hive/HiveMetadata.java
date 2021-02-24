@@ -70,6 +70,7 @@ import com.facebook.presto.spi.SystemTable;
 import com.facebook.presto.spi.TableLayoutFilterCoverage;
 import com.facebook.presto.spi.TableNotFoundException;
 import com.facebook.presto.spi.ViewNotFoundException;
+import com.facebook.presto.spi.connector.ConnectorCommitResult;
 import com.facebook.presto.spi.connector.ConnectorOutputMetadata;
 import com.facebook.presto.spi.connector.ConnectorPartitioningHandle;
 import com.facebook.presto.spi.connector.ConnectorPartitioningMetadata;
@@ -1720,7 +1721,8 @@ public class HiveMetadata
                     0,
                     0,
                     0,
-                    isFileRenamingEnabled(session)));
+                    isFileRenamingEnabled(session)
+            ));
         }
 
         ImmutableList.Builder<PartitionUpdate> partitionUpdatesForMissingBucketsBuilder = ImmutableList.builder();
@@ -1745,7 +1747,8 @@ public class HiveMetadata
                     0,
                     0,
                     0,
-                    isFileRenamingEnabled(session)));
+                    isFileRenamingEnabled(session)
+            ));
         }
         return partitionUpdatesForMissingBucketsBuilder.build();
     }
@@ -3380,9 +3383,9 @@ public class HiveMetadata
     }
 
     @Override
-    public void commit()
+    public ConnectorCommitResult commit()
     {
-        metastore.commit();
+        return metastore.commit();
     }
 
     @Override

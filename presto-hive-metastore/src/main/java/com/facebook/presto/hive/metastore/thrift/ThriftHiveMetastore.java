@@ -818,7 +818,7 @@ public class ThriftHiveMetastore
     }
 
     @Override
-    public void createTable(Table table)
+    public Optional<Integer> createTable(Table table)
     {
         try {
             retry()
@@ -828,7 +828,7 @@ public class ThriftHiveMetastore
                         try (HiveMetastoreClient client = clientProvider.createMetastoreClient()) {
                             client.createTable(table);
                         }
-                        return null;
+                        return Optional.empty();
                     }));
         }
         catch (AlreadyExistsException e) {
@@ -843,6 +843,7 @@ public class ThriftHiveMetastore
         catch (Exception e) {
             throw propagate(e);
         }
+        return Optional.empty();
     }
 
     @Override

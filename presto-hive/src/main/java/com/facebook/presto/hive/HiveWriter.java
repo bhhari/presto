@@ -129,7 +129,8 @@ public class HiveWriter
                 rowCount,
                 inputSizeInBytes,
                 fileWriter.getWrittenBytes(),
-                fileWriteInfo.getWriteFileName().matches("\\d+"));
+                fileWriteInfo.getWriteFileName().matches("\\d+")
+        );
     }
 
     @Override

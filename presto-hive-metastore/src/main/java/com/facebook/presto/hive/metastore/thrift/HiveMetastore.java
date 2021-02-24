@@ -26,6 +26,7 @@ import com.facebook.presto.spi.TableNotFoundException;
 import com.facebook.presto.spi.security.PrestoPrincipal;
 import com.facebook.presto.spi.security.RoleGrant;
 import com.facebook.presto.spi.statistics.ColumnStatisticType;
+import com.facebook.presto.spi.statistics.TableStatistics;
 import org.apache.hadoop.hive.metastore.api.Database;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Partition;
@@ -47,7 +48,7 @@ public interface HiveMetastore
 
     void alterDatabase(String databaseName, Database database);
 
-    void createTable(Table table);
+    Optional<Integer> createTable(Table table);
 
     void dropTable(String databaseName, String tableName, boolean deleteData);
 

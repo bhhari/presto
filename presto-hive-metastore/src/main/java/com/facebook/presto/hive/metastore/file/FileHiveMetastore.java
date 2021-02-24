@@ -223,7 +223,7 @@ public class FileHiveMetastore
     }
 
     @Override
-    public synchronized void createTable(Table table, PrincipalPrivileges principalPrivileges)
+    public synchronized Optional<Integer> createTable(Table table, PrincipalPrivileges principalPrivileges)
     {
         checkArgument(!table.getTableType().equals(TEMPORARY_TABLE), "temporary tables must never be committed to the metastore");
 
@@ -267,6 +267,7 @@ public class FileHiveMetastore
         for (Entry<String, Collection<HivePrivilegeInfo>> entry : principalPrivileges.getRolePrivileges().asMap().entrySet()) {
             setTablePrivileges(new PrestoPrincipal(ROLE, entry.getKey()), table.getDatabaseName(), table.getTableName(), entry.getValue());
         }
+        return Optional.empty();
     }
 
     @Override

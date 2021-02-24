@@ -14,6 +14,7 @@
 package com.facebook.presto.mongodb;
 
 import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorCommitResult;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.facebook.presto.spi.connector.ConnectorPageSinkProvider;
 import com.facebook.presto.spi.connector.ConnectorPageSourceProvider;
@@ -78,9 +79,10 @@ public class MongoConnector
     }
 
     @Override
-    public void commit(ConnectorTransactionHandle transaction)
+    public ConnectorCommitResult commit(ConnectorTransactionHandle transaction)
     {
         checkArgument(transactions.remove(transaction) != null, "no such transaction: %s", transaction);
+        return null;
     }
 
     @Override

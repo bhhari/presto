@@ -46,6 +46,13 @@ public class Table
     private final Optional<String> viewOriginalText;
     private final Optional<String> viewExpandedText;
 
+    public Optional<Integer> getLastCommitDataTime()
+    {
+        return lastCommitDataTime;
+    }
+
+    private final Optional<Integer> lastCommitDataTime;
+
     @JsonCreator
     public Table(
             @JsonProperty("databaseName") String databaseName,
@@ -57,7 +64,8 @@ public class Table
             @JsonProperty("partitionColumns") List<Column> partitionColumns,
             @JsonProperty("parameters") Map<String, String> parameters,
             @JsonProperty("viewOriginalText") Optional<String> viewOriginalText,
-            @JsonProperty("viewExpandedText") Optional<String> viewExpandedText)
+            @JsonProperty("viewExpandedText") Optional<String> viewExpandedText,
+            @JsonProperty("lastCommitDataTime") Optional<Integer> lastCommitDataTime)
     {
         this.databaseName = requireNonNull(databaseName, "databaseName is null");
         this.tableName = requireNonNull(tableName, "tableName is null");
@@ -69,6 +77,7 @@ public class Table
         this.parameters = ImmutableMap.copyOf(requireNonNull(parameters, "parameters is null"));
         this.viewOriginalText = requireNonNull(viewOriginalText, "viewOriginalText is null");
         this.viewExpandedText = requireNonNull(viewExpandedText, "viewExpandedText is null");
+        this.lastCommitDataTime = requireNonNull(lastCommitDataTime, "lastCommitDataTime is null");
     }
 
     @JsonProperty
@@ -162,6 +171,7 @@ public class Table
                 .add("parameters", parameters)
                 .add("viewOriginalText", viewOriginalText)
                 .add("viewExpandedText", viewExpandedText)
+                .add("lastCommitDataTime", lastCommitDataTime)
                 .toString();
     }
 
@@ -185,7 +195,9 @@ public class Table
                 Objects.equals(storage, table.storage) &&
                 Objects.equals(parameters, table.parameters) &&
                 Objects.equals(viewOriginalText, table.viewOriginalText) &&
-                Objects.equals(viewExpandedText, table.viewExpandedText);
+                Objects.equals(viewExpandedText, table.viewExpandedText) &&
+                Objects.equals(lastCommitDataTime, table.lastCommitDataTime) ;
+
     }
 
     @Override
@@ -201,7 +213,8 @@ public class Table
                 storage,
                 parameters,
                 viewOriginalText,
-                viewExpandedText);
+                viewExpandedText,
+                lastCommitDataTime);
     }
 
     public static class Builder
@@ -216,6 +229,7 @@ public class Table
         private Map<String, String> parameters = new LinkedHashMap<>();
         private Optional<String> viewOriginalText = Optional.empty();
         private Optional<String> viewExpandedText = Optional.empty();
+        private Optional<Integer> lastCommitDataTime = Optional.empty();
 
         private Builder()
         {
@@ -234,6 +248,7 @@ public class Table
             parameters = new LinkedHashMap<>(table.parameters);
             viewOriginalText = table.viewOriginalText;
             viewExpandedText = table.viewExpandedText;
+            lastCommitDataTime = table.lastCommitDataTime;
         }
 
         public Builder setDatabaseName(String databaseName)
@@ -274,6 +289,12 @@ public class Table
         public Builder addDataColumn(Column dataColumn)
         {
             this.dataColumns.add(dataColumn);
+            return this;
+        }
+
+        public Builder addLastCommitDataTime(Optional<Integer> lastCommitDataTime)
+        {
+            this.lastCommitDataTime = lastCommitDataTime;
             return this;
         }
 
@@ -319,7 +340,8 @@ public class Table
                     partitionColumns,
                     parameters,
                     viewOriginalText,
-                    viewExpandedText);
+                    viewExpandedText,
+                    lastCommitDataTime);
         }
     }
 }

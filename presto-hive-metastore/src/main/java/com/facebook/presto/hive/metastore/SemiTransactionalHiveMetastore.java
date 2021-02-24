@@ -28,6 +28,7 @@ import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.StandardErrorCode;
 import com.facebook.presto.spi.TableNotFoundException;
+import com.facebook.presto.spi.connector.ConnectorCommitResult;
 import com.facebook.presto.spi.security.PrestoPrincipal;
 import com.facebook.presto.spi.security.PrincipalType;
 import com.facebook.presto.spi.security.RoleGrant;
@@ -59,6 +60,7 @@ import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import static com.facebook.airlift.concurrent.MoreFutures.getFutureValue;
 import static com.facebook.presto.hive.HiveErrorCode.HIVE_CORRUPTED_COLUMN_STATISTICS;
@@ -904,15 +906,14 @@ public class SemiTransactionalHiveMetastore
         declaredIntentionsToWrite.add(new DeclaredIntentionToWrite(writeMode, context, stagingPathRoot, tempPathRoot, filePrefix, schemaTableName, temporaryTable));
     }
 
-    public synchronized void commit()
+    public synchronized ConnectorCommitResult commit()
     {
         try {
             switch (state) {
                 case EMPTY:
                     break;
                 case SHARED_OPERATION_BUFFERED:
-                    commitShared();
-                    break;
+                    return new ConnectorCommitResult(commitShared());
                 case EXCLUSIVE_OPERATION_BUFFERED:
                     requireNonNull(bufferedExclusiveOperation, "bufferedExclusiveOperation is null");
                     bufferedExclusiveOperation.execute(delegate, hdfsEnvironment);
@@ -926,6 +927,7 @@ public class SemiTransactionalHiveMetastore
         finally {
             state = State.FINISHED;
         }
+        return null;
     }
 
     public synchronized void rollback()
@@ -950,7 +952,7 @@ public class SemiTransactionalHiveMetastore
     }
 
     @GuardedBy("this")
-    private void commitShared()
+    private Map<String, ConnectorCommitResult.QueryCommitResult> commitShared()
     {
         checkHoldsLock();
 
@@ -1075,6 +1077,9 @@ public class SemiTransactionalHiveMetastore
             // Clean up root temp directories
             deleteTempPathRootDirectory(declaredIntentionsToWrite, hdfsEnvironment);
         }
+
+        Map<String, ConnectorCommitResult.QueryCommitResult> results = committer.getResults();
+        return results;
     }
 
     private class Committer
@@ -1088,6 +1093,8 @@ public class SemiTransactionalHiveMetastore
         private final List<DirectoryDeletionTask> deletionTasksForFinish = new ArrayList<>();
         private final List<DirectoryCleanUpTask> cleanUpTasksForAbort = new ArrayList<>();
         private final List<DirectoryRenameTask> renameTasksForAbort = new ArrayList<>();
+
+
 
         // Metastore
         private final List<CreateTableOperation> addTableOperations = new ArrayList<>();
@@ -1173,7 +1180,7 @@ public class SemiTransactionalHiveMetastore
                     }
                 }
             }
-            addTableOperations.add(new CreateTableOperation(table, tableAndMore.getPrincipalPrivileges(), tableAndMore.isIgnoreExisting()));
+            addTableOperations.add(new CreateTableOperation(table, tableAndMore));
             if (!isPrestoView(table)) {
                 updateStatisticsOperations.add(new UpdateStatisticsOperation(
                         new SchemaTableName(table.getDatabaseName(), table.getTableName()),
@@ -1534,6 +1541,43 @@ public class SemiTransactionalHiveMetastore
                 filePrefixSet.add(declaredIntentionToWrite.getFilePrefix());
             }
             return ImmutableList.copyOf(filePrefixSet);
+        }
+
+        public Map<String, ConnectorCommitResult.QueryCommitResult> getResults()
+        {
+            Map<String, ConnectorCommitResult.QueryCommitResult> p = new HashMap<>();
+            List<CreateTableOperationResult> t = addTableOperations.stream().map(CreateTableOperation::getResult).collect(Collectors.toList());
+            for (CreateTableOperationResult r : t) {
+                if (!p.containsKey(r.getQueryId())) {
+                    p.put(r.getQueryId(), new QueryCommitResultImpl(r.getQueryId()));
+                }
+                p.get(r.getQueryId()).getOutputTimes().add(r.t.getLastCommitDataTime().orElse(-1));
+            }
+            return p;
+        }
+    }
+
+    public static class QueryCommitResultImpl implements ConnectorCommitResult.QueryCommitResult{
+
+        String queryId;
+        List<Integer> inputs;
+        List<Integer> outputs;
+        QueryCommitResultImpl(String queryId){
+            this.queryId = queryId;
+            inputs = new ArrayList<>();
+            outputs = new ArrayList<>();
+        }
+
+        @Override
+        public List<Integer> getInputTimes()
+        {
+            return inputs;
+        }
+
+        @Override
+        public List<Integer> getOutputTimes()
+        {
+            return outputs;
         }
     }
 
@@ -2420,6 +2464,16 @@ public class SemiTransactionalHiveMetastore
         }
     }
 
+
+    private static class CreateTableOperationResult
+    {
+        String queryId;
+        Table t;
+        public String getQueryId(){
+            return queryId;
+        }
+    }
+
     private static class CreateTableOperation
     {
         private final Table newTable;
@@ -2427,13 +2481,14 @@ public class SemiTransactionalHiveMetastore
         private boolean tableCreated;
         private final boolean ignoreExisting;
         private final String queryId;
+        private final CreateTableOperationResult result = new CreateTableOperationResult();
 
-        public CreateTableOperation(Table newTable, PrincipalPrivileges privileges, boolean ignoreExisting)
+        public CreateTableOperation(Table newTable, TableAndMore tableAndMore)
         {
             requireNonNull(newTable, "newTable is null");
             this.newTable = newTable;
-            this.privileges = requireNonNull(privileges, "privileges is null");
-            this.ignoreExisting = ignoreExisting;
+            this.privileges = requireNonNull(tableAndMore.getPrincipalPrivileges(), "privileges is null");
+            this.ignoreExisting = tableAndMore.isIgnoreExisting();
             this.queryId = getPrestoQueryId(newTable).orElseThrow(() -> new IllegalArgumentException("Query id is not present"));
         }
 
@@ -2442,11 +2497,17 @@ public class SemiTransactionalHiveMetastore
             return format("add table %s.%s", newTable.getDatabaseName(), newTable.getTableName());
         }
 
+        public CreateTableOperationResult getResult(){
+            return this.result;
+        }
+
         public void run(ExtendedHiveMetastore metastore)
         {
             boolean done = false;
             try {
-                metastore.createTable(newTable, privileges);
+                Optional<Integer> commitTime = metastore.createTable(newTable, privileges);
+                result.queryId = queryId;
+                result.t = Table.builder(newTable).addLastCommitDataTime(commitTime).build();
                 done = true;
             }
             catch (RuntimeException e) {

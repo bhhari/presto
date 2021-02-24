@@ -477,7 +477,7 @@ public class GlueHiveMetastore
     }
 
     @Override
-    public void createTable(Table table, PrincipalPrivileges principalPrivileges)
+    public Optional<Integer> createTable(Table table, PrincipalPrivileges principalPrivileges)
     {
         try {
             TableInput input = GlueInputConverter.convertTable(table);
@@ -485,6 +485,7 @@ public class GlueHiveMetastore
                     .withCatalogId(catalogId)
                     .withDatabaseName(table.getDatabaseName())
                     .withTableInput(input)));
+            return Optional.empty();
         }
         catch (AlreadyExistsException e) {
             throw new TableAlreadyExistsException(new SchemaTableName(table.getDatabaseName(), table.getTableName()));

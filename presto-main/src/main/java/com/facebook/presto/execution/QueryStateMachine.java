@@ -27,6 +27,7 @@ import com.facebook.presto.spi.ErrorCode;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.QueryId;
 import com.facebook.presto.spi.WarningCollector;
+import com.facebook.presto.spi.connector.ConnectorCommitResult;
 import com.facebook.presto.spi.function.SqlFunctionId;
 import com.facebook.presto.spi.function.SqlInvokedFunction;
 import com.facebook.presto.spi.resourceGroups.QueryType;
@@ -148,6 +149,9 @@ public class QueryStateMachine
 
     private final Map<SqlFunctionId, SqlInvokedFunction> addedSessionFunctions = new ConcurrentHashMap<>();
     private final Set<SqlFunctionId> removedSessionFunctions = Sets.newConcurrentHashSet();
+
+    private final AtomicReference<List<Integer>> inputTimes = new AtomicReference<>(ImmutableList.of());
+    private final AtomicReference<List<Integer>> outputTimes = new AtomicReference<>(ImmutableList.of());
 
     private final WarningCollector warningCollector;
 
@@ -456,7 +460,9 @@ public class QueryStateMachine
                 failedTasks,
                 runtimeOptimizedStages.isEmpty() ? Optional.empty() : Optional.of(runtimeOptimizedStages),
                 addedSessionFunctions,
-                removedSessionFunctions);
+                removedSessionFunctions,
+                Optional.empty(),
+                Optional.empty());
     }
 
     private QueryStats getQueryStats(Optional<StageInfo> rootStage)
@@ -680,7 +686,7 @@ public class QueryStateMachine
                 @Override
                 public void onSuccess(@Nullable Object result)
                 {
-                    transitionToFinished();
+                    transitionToFinished(result);
                 }
 
                 @Override
@@ -691,13 +697,26 @@ public class QueryStateMachine
             }, directExecutor());
         }
         else {
-            transitionToFinished();
+            transitionToFinished(null);
         }
         return true;
     }
 
-    private void transitionToFinished()
+    private void transitionToFinished(Object result)
     {
+        System.out.println(result);
+        if (result != null && result instanceof List) {
+            for (Object v : (List) result) {
+                if (v instanceof ConnectorCommitResult) {
+                    ConnectorCommitResult a = (ConnectorCommitResult) v;
+                    ConnectorCommitResult.QueryCommitResult results = a.getR().get(queryId.getId());
+                    if (results != null) {
+                        outputTimes.getAndSet(results.getOutputTimes());
+                        inputTimes.getAndSet(results.getInputTimes());
+                    }
+                }
+            }
+        }
         cleanupQueryQuietly();
         queryStateTimer.endQuery();
 
@@ -921,7 +940,9 @@ public class QueryStateMachine
                 queryInfo.getFailedTasks(),
                 queryInfo.getRuntimeOptimizedStages(),
                 queryInfo.getAddedSessionFunctions(),
-                queryInfo.getRemovedSessionFunctions());
+                queryInfo.getRemovedSessionFunctions(),
+                queryInfo.getInputsDataTimes(),
+                queryInfo.getOutputDataTimes());
         finalQueryInfo.compareAndSet(finalInfo, Optional.of(prunedQueryInfo));
     }
 

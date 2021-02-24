@@ -479,10 +479,10 @@ public class CachingHiveMetastore
     }
 
     @Override
-    public void createTable(Table table, PrincipalPrivileges principalPrivileges)
+    public Optional<Integer> createTable(Table table, PrincipalPrivileges principalPrivileges)
     {
         try {
-            delegate.createTable(table, principalPrivileges);
+            return delegate.createTable(table, principalPrivileges);
         }
         finally {
             invalidateTable(table.getDatabaseName(), table.getTableName());

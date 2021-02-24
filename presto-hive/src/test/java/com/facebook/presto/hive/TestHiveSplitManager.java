@@ -149,6 +149,7 @@ public class TestHiveSplitManager
             ImmutableList.of(new Column("ds", HIVE_STRING, Optional.empty())),
             ImmutableMap.of(),
             Optional.empty(),
+            Optional.empty(),
             Optional.empty());
 
     private ListeningExecutorService executor;

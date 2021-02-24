@@ -425,7 +425,8 @@ public class HivePageSink
                 partitionUpdate.getRowCount(),
                 partitionUpdate.getInMemoryDataSizeInBytes(),
                 partitionUpdate.getOnDiskDataSizeInBytes(),
-                true);
+                true
+        );
         partitionUpdatesWithRenamedFileNames.add(wrappedBuffer(partitionUpdateCodec.toJsonBytes(partitionUpdateWithRenamedFileName)));
 
         hiveMetadataUpdater.removeResultFuture(writerIndex);

@@ -69,6 +69,7 @@ public class TestAbstractDwrfEncryptionInformationSource
                 isPartitioned ? ImmutableList.of(new Column("ds", HIVE_STRING, Optional.empty())) : ImmutableList.of(),
                 tableEncryptionProperties.map(DwrfTableEncryptionProperties::toHiveProperties).orElse(ImmutableMap.of()),
                 Optional.empty(),
+                Optional.empty(),
                 Optional.empty());
     }
 

@@ -169,7 +169,7 @@ public class InMemoryHiveMetastore
     }
 
     @Override
-    public synchronized void createTable(Table table)
+    public synchronized Optional<Integer> createTable(Table table)
     {
         TableType tableType = TableType.valueOf(table.getTableType());
         checkArgument(EnumSet.of(MANAGED_TABLE, EXTERNAL_TABLE, VIRTUAL_VIEW).contains(tableType), "Invalid table type: %s", tableType);
@@ -200,6 +200,7 @@ public class InMemoryHiveMetastore
         if (privileges != null) {
             throw new UnsupportedOperationException();
         }
+        return Optional.empty();
     }
 
     @Override

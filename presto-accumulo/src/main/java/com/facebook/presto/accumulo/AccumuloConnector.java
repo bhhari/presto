@@ -20,6 +20,7 @@ import com.facebook.presto.accumulo.conf.AccumuloTableProperties;
 import com.facebook.presto.accumulo.io.AccumuloPageSinkProvider;
 import com.facebook.presto.accumulo.io.AccumuloRecordSetProvider;
 import com.facebook.presto.spi.connector.Connector;
+import com.facebook.presto.spi.connector.ConnectorCommitResult;
 import com.facebook.presto.spi.connector.ConnectorMetadata;
 import com.facebook.presto.spi.connector.ConnectorPageSinkProvider;
 import com.facebook.presto.spi.connector.ConnectorRecordSetProvider;
@@ -94,9 +95,10 @@ public class AccumuloConnector
     }
 
     @Override
-    public void commit(ConnectorTransactionHandle transactionHandle)
+    public ConnectorCommitResult commit(ConnectorTransactionHandle transactionHandle)
     {
         checkArgument(transactions.remove(transactionHandle) != null, "no such transaction: %s", transactionHandle);
+        return null;
     }
 
     @Override

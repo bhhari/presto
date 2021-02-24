@@ -108,7 +108,7 @@ public class UnimplementedHiveMetastore
     }
 
     @Override
-    public void createTable(Table table, PrincipalPrivileges principalPrivileges)
+    public Optional<Integer> createTable(Table table, PrincipalPrivileges principalPrivileges)
     {
         throw new UnsupportedOperationException();
     }

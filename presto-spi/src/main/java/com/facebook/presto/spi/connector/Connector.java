@@ -159,9 +159,11 @@ public interface Connector
     /**
      * Commit the transaction. Will be called at most once and will not be called if
      * {@link #rollback(ConnectorTransactionHandle)} is called.
+     * @return
      */
-    default void commit(ConnectorTransactionHandle transactionHandle)
+    default ConnectorCommitResult commit(ConnectorTransactionHandle transactionHandle)
     {
+        return null;
     }
 
     /**

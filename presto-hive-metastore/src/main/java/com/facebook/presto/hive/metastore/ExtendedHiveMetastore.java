@@ -54,7 +54,7 @@ public interface ExtendedHiveMetastore
 
     void renameDatabase(String databaseName, String newDatabaseName);
 
-    void createTable(Table table, PrincipalPrivileges principalPrivileges);
+    Optional<Integer> createTable(Table table, PrincipalPrivileges principalPrivileges);
 
     void dropTable(String databaseName, String tableName, boolean deleteData);
 

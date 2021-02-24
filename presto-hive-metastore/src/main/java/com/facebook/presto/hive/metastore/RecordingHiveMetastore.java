@@ -277,10 +277,10 @@ public class RecordingHiveMetastore
     }
 
     @Override
-    public void createTable(Table table, PrincipalPrivileges principalPrivileges)
+    public Optional<Integer> createTable(Table table, PrincipalPrivileges principalPrivileges)
     {
         verifyRecordingMode();
-        delegate.createTable(table, principalPrivileges);
+        return delegate.createTable(table, principalPrivileges);
     }
 
     @Override
